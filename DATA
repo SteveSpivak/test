@@ -1,0 +1,58 @@
+meuhedet_madrich
+Overview
+This project is a POC for Meuhedet. The goal is to return the service that the client is asking for and extract the necessary fields from their question.
+
+Table of Contents
+Data
+Program Architecture
+Conversation History
+Evaluation
+Deployment Details
+Project Status
+Personnel
+Team Members - Maya - Backend Dev - Sean - PM - Shlomi - Powerapps - Steve Powerapps
+
+Data
+The data provided is in structured JSON files, they have undergone some processing to make them valid jsons
+analysis can be found in docs -> meuhedet_madrich_EDA.ipynb
+Program Architecture
+Bot first runs a classification to detect if a medical request is being made. If there is a medical request, the following fields are extracted from the user query.
+
+Fields to extract
+medical_request: if there is a medical request being made (1 or 0)
+time_of_day: "morning" or "afternoon" or both
+appointment_type: "clinic" (default), "phone", or "video"
+day: day of the week ("monday" "tuesday" etc.)
+city: city name(s)
+region: region name(s)
+מחוז ירושלים
+מחוז דרום
+מחוז מרכז
+מחוז צפון
+language: if language(s) of provider os specified
+gender: if gender of provider is specified ("m", "f" or "")
+name: name(s) of clinic
+specialization(s): list of medical specializations
+{
+    "medical_request": "0",
+    "time_of_day": [],
+    "appointment_type": [],
+    "day": [],
+    "city": [],
+    "region": [],
+    "language": [],
+    "gender": "",
+    "name": [],
+    "specializations": []
+}
+Conversation History
+Conversation history is not held
+
+Evaluation
+Project is evaluated based on sample_quesitons_3.xlsx where the client has provided their desired outputs for specific user inputs.
+
+Deployment Details
+. - Environment: Webapp on Client Azure - Keys and Endpoints: Clients - Deployment Notes: FastAPI & Powerapps
+
+Project Status
+[https://kpmg214.monday.com/boards/6062771690/pulses/7021022004]
