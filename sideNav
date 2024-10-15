@@ -1,0 +1,74 @@
+{
+  logo: {
+    icon: appIcons.Cloud,
+    text: "Resource Manager"
+  },
+  menuItems: [
+    {
+      id: "dashboard",
+      icon: appIcons.LayoutDashboard,
+      label: "Dashboard",
+      screen: "scrDashboard",
+      action: "Navigate(scrDashboard)",
+      visibleTo: ["Admin", "User", "Manager"]
+    },
+    {
+      id: "resources",
+      icon: appIcons.Server,
+      label: "Resources",
+      screen: "scrResources",
+      action: "Navigate(scrResources)",
+      visibleTo: ["Admin", "User", "Manager"]
+    },
+    {
+      id: "requests",
+      icon: appIcons.FileText,
+      label: "Requests",
+      screen: "scrRequests",
+      action: "Navigate(scrRequests)",
+      visibleTo: ["Admin", "User", "Manager"]
+    },
+    {
+      id: "approvals",
+      icon: appIcons.CheckCircle,
+      label: "Approvals",
+      screen: "scrApprovals",
+      action: "Navigate(scrApprovals)",
+      visibleTo: ["Admin", "Manager"]
+    },
+    {
+      id: "reports",
+      icon: appIcons.BarChart,
+      label: "Reports",
+      screen: "scrReports",
+      action: "Navigate(scrReports)",
+      visibleTo: ["Admin", "Manager"]
+    },
+    {
+      id: "settings",
+      icon: appIcons.Settings,
+      label: "Settings",
+      screen: "scrSettings",
+      action: "Navigate(scrSettings)",
+      visibleTo: ["Admin"]
+    }
+  ],
+  bottomItems: [
+    {
+      id: "profile",
+      icon: appIcons.User,
+      label: "Profile",
+      screen: "scrProfile",
+      action: "Navigate(scrProfile)",
+      visibleTo: ["Admin", "User", "Manager"]
+    },
+    {
+      id: "logout",
+      icon: appIcons.LogOut,
+      label: "Logout",
+      action: "Logout()",
+      visibleTo: ["Admin", "User", "Manager"]
+    }
+  ],
+  getActiveScreen: "If(StartsWith(App.ActiveScreen.Name, 'scr'), App.ActiveScreen.Name, '')"
+}
