@@ -1,0 +1,63 @@
+Set(
+    gblTheme,
+    {
+        // Colors
+        PrimaryColor: ColorValue("#0078D4"),
+        SecondaryColor: ColorValue("#2B88D8"),
+        TertiaryColor: ColorValue("#A4D3FF"),
+        
+        TextPrimaryColor: ColorValue("#333333"),
+        TextSecondaryColor: ColorValue("#666666"),
+        TextLightColor: ColorValue("#FFFFFF"),
+        
+        BackgroundPrimaryColor: ColorValue("#FFFFFF"),
+        BackgroundSecondaryColor: ColorValue("#F3F3F3"),
+        BackgroundTertiaryColor: ColorValue("#E1E1E1"),
+        
+        BorderPrimaryColor: ColorValue("#CCCCCC"),
+        BorderSecondaryColor: ColorValue("#E1E1E1"),
+        
+        SuccessColor: ColorValue("#107C10"),
+        WarningColor: ColorValue("#FFC300"),
+        ErrorColor: ColorValue("#E81123"),
+        
+        // Typography
+        FontSizeSmall: 12,
+        FontSizeMedium: 14,
+        FontSizeLarge: 18,
+        FontSizeXLarge: 24,
+        
+        // Spacing
+        SpacingSmall: 4,
+        SpacingMedium: 8,
+        SpacingLarge: 16,
+        SpacingXLarge: 24,
+        
+        // Border Radius
+        BorderRadiusSmall: 2,
+        BorderRadiusMedium: 4,
+        BorderRadiusLarge: 8,
+        
+        // Icons
+        IconHome: Icon.Home,
+        IconSettings: Icon.Settings,
+        IconUser: Icon.User,
+        IconAdd: Icon.Add,
+        IconEdit: Icon.Edit,
+        IconDelete: Icon.Trash,
+        IconSearch: Icon.Search,
+        IconNotification: Icon.Bell,
+        IconMenu: Icon.Menu,
+        IconClose: Icon.Cancel,
+        IconSuccess: Icon.CheckMark,
+        IconWarning: Icon.Warning,
+        IconError: Icon.Error,
+        IconInfo: Icon.Info,
+        IconDocument: Icon.Document,
+        IconFolder: Icon.FolderFilled,
+        IconCalendar: Icon.Calendar,
+        IconMail: Icon.Mail,
+        IconPhone: Icon.Phone,
+        IconChat: Icon.Chat
+    }
+);
