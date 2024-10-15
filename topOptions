@@ -1,0 +1,94 @@
+{
+  "dashboardOptions": [
+    {
+      "id": "OPTION001",
+      "title": "Resource Overview",
+      "description": "View all resources and their current status",
+      "icon": "appIcons.LayoutDashboard",
+      "primaryColor": "gblTheme.PrimaryColor",
+      "secondaryColor": "gblTheme.SecondaryColor",
+      "mainMetric": {
+        "label": "Total Resources",
+        "value": "CountRows(tblResources)",
+        "icon": "appIcons.Server"
+      },
+      "subMetrics": [
+        {
+          "label": "Active Resources",
+          "value": "CountIf(tblResources, Status = 'Active')",
+          "icon": "appIcons.CheckCircle"
+        },
+        {
+          "label": "Resource Usage",
+          "value": "Average(tblResources, UsagePercentage) & '%'",
+          "icon": "appIcons.BarChart"
+        }
+      ],
+      "actionButton": {
+        "label": "Add Resource",
+        "icon": "appIcons.Plus",
+        "action": "NewForm(frmAddResource)"
+      }
+    },
+    {
+      "id": "OPTION002",
+      "title": "Resource Performance",
+      "description": "Monitor resource performance and usage trends",
+      "icon": "appIcons.Activity",
+      "primaryColor": "gblTheme.PrimaryColor",
+      "secondaryColor": "gblTheme.TertiaryColor",
+      "mainMetric": {
+        "label": "Avg Performance Score",
+        "value": "Round(Average(tblResources, PerformanceScore), 2)",
+        "icon": "appIcons.Zap"
+      },
+      "subMetrics": [
+        {
+          "label": "High Usage Resources",
+          "value": "CountIf(tblResources, UsagePercentage > 80)",
+          "icon": "appIcons.AlertTriangle"
+        },
+        {
+          "label": "Low Usage Resources",
+          "value": "CountIf(tblResources, UsagePercentage < 20)",
+          "icon": "appIcons.AlertCircle"
+        }
+      ],
+      "actionButton": {
+        "label": "View Details",
+        "icon": "appIcons.Eye",
+        "action": "Navigate(scrResourcePerformance)"
+      }
+    },
+    {
+      "id": "OPTION003",
+      "title": "Resource Allocation",
+      "description": "Manage resource allocation across projects",
+      "icon": "appIcons.Sliders",
+      "primaryColor": "gblTheme.SecondaryColor",
+      "secondaryColor": "gblTheme.BackgroundSecondaryColor",
+      "mainMetric": {
+        "label": "Allocated Resources",
+        "value": "CountIf(tblResources, IsAllocated = true)",
+        "icon": "appIcons.CheckCircle"
+      },
+      "subMetrics": [
+        {
+          "label": "Available Resources",
+          "value": "CountIf(tblResources, IsAllocated = false)",
+          "icon": "appIcons.Unlock"
+        },
+        {
+          "label": "Overallocated Projects",
+          "value": "CountIf(tblProjects, AllocatedResources > RequiredResources)",
+          "icon": "appIcons.AlertTriangle"
+        }
+      ],
+      "actionButton": {
+        "label": "Allocate Resources",
+        "icon": "appIcons.Share",
+        "action": "Navigate(scrResourceAllocation)"
+      }
+    }
+  ]
+}
