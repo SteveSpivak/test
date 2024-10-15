@@ -1,0 +1,111 @@
+{
+  header: {
+    title: "Resource Dashboard",
+    icon: appIcons.LayoutDashboard
+  },
+  summaryCards: [
+    {
+      title: "Total Resources",
+      value: CountRows(tblResources),
+      icon: appIcons.Server,
+      color: gblTheme.PrimaryColor
+    },
+    {
+      title: "Active Resources",
+      value: CountIf(tblResources, Status = 'Active'),
+      icon: appIcons.CheckCircle,
+      color: gblTheme.SuccessColor
+    },
+    {
+      title: "Resource Utilization",
+      value: Text(Round(Average(tblResources, Utilization) * 100, 2)) & "%",
+      icon: appIcons.PieChart,
+      color: gblTheme.SecondaryColor
+    }
+  ],
+  quickActions: [
+    {
+      label: "Add Resource",
+      icon: appIcons.Plus,
+      action: "NewForm(frmAddResource)"
+    },
+    {
+      label: "View All Resources",
+      icon: appIcons.List,
+      action: "Navigate(scrResourceList)"
+    },
+    {
+      label: "Generate Report",
+      icon: appIcons.FileText,
+      action: "Navigate(scrReportGenerator)"
+    }
+  ],
+  resourceList: {
+    title: "Recent Resources",
+    items: FirstN(SortByColumns(tblResources, "CreatedDate", Descending), 5),
+    columns: [
+      {
+        header: "Name",
+        value: ThisRecord.Name
+      },
+      {
+        header: "Type",
+        value: ThisRecord.Type
+      },
+      {
+        header: "Status",
+        value: ThisRecord.Status
+      },
+      {
+        header: "Utilization",
+        value: Text(Round(ThisRecord.Utilization * 100, 2)) & "%"
+      }
+    ],
+    moreAction: {
+      label: "View All",
+      action: "Navigate(scrResourceList)"
+    }
+  },
+  charts: [
+    {
+      title: "Resource Allocation by Type",
+      type: "Pie",
+      data: GroupBy(tblResources, "Type", "Count"),
+      colors: [
+        gblTheme.PrimaryColor,
+        gblTheme.SecondaryColor,
+        gblTheme.TertiaryColor,
+        gblTheme.SuccessColor,
+        gblTheme.WarningColor
+      ]
+    },
+    {
+      title: "Resource Utilization Trend",
+      type: "Line",
+      data: ChartData,
+      xAxis: {
+        title: "Date",
+        valueField: "Date"
+      },
+      yAxis: {
+        title: "Utilization %",
+        valueField: "Utilization"
+      },
+      color: gblTheme.PrimaryColor
+    }
+  ],
+  filters: [
+    {
+      label: "Resource Type",
+      type: "Dropdown",
+      items: Distinct(tblResources, Type),
+      variable: "varResourceTypeFilter"
+    },
+    {
+      label: "Status",
+      type: "Toggle",
+      options: ["Active", "Inactive"],
+      variable: "varStatusFilter"
+    }
+  ]
+}
