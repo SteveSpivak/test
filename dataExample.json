@@ -1,0 +1,54 @@
+{
+  "deployment_subscription_id": "0955a623-45ad-4f22-bd63-a15b8152989b",
+  "management_subscription_id": "5f106ae9-0794-4702-a5ee-cbed11a70019",
+  "monitoring_subscription_id": "1a101401-e138-41f3-9784-28164684d577",
+  "base_name": "test-devbox",
+  "enviroment_short_name": "dev",
+  "location": "israelcentral",
+  "RG": {
+    "tags": {
+      "BusinessCriticality": "General",
+      "BusinessUnit": "Strauss Group",
+      "CreateDate": "07.08.24",
+      "DeploymentBy": "Edu",
+      "Environment": "Development",
+      "ManagedBy": "Edu",
+      "OpsTeam": "CCOE",
+      "ProjectName": "test-devbox",
+      "WorkloadName": "test-devbox"
+    },
+    "group_names_permission_reader": ["sec_azure_ccoe"],
+    "group_names_permission_contributor": ["sec_azure_ccoe"]
+  },
+  "Dev_Center": {
+    "center1": {
+      "dev_box_project": {
+        "proj1": {
+          "name": "proj1",
+          "project_subnet_id": "/subscriptions/0955a623-45ad-4f22-bd63-a15b8152989b/resourceGroups/rg-il-sg-data-platform-infra/providers/Microsoft.Network/virtualNetworks/vnet-il-sg-data-platform-1/subnets/snet-il-sg-data-platform-1-vm",
+          "definitions": {
+            "def1": {
+              "name": "def1",
+              "image_reference_id": "/galleries/azg_dev_center_management",
+              "shared_gallery_name": "azg_dev_center_management"
+            }
+          }
+        }
+      },
+      "tags": {}
+    }
+  },
+  "dev_box_project": {
+    "proj1": {
+      "name": "proj1",
+      "project_subnet_id": "/subscriptions/0955a623-45ad-4f22-bd63-a15b8152989b/resourceGroups/rg-il-sg-data-platform-infra/providers/Microsoft.Network/virtualNetworks/vnet-il-sg-data-platform-1/subnets/snet-il-sg-data-platform-1-vm",
+      "definitions": {
+        "def1": {
+          "name": "def1",
+          "image_reference_id": "/galleries/azg_dev_center_management",
+          "shared_gallery_name": "azg_dev_center_management"
+        }
+      }
+    }
+  }
+}
