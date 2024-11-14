@@ -1,0 +1,65 @@
+// Resource Statistics
+ClearCollect(
+    colResourceStats,
+    [
+        {
+            Title: "My Active Resources",
+            Value: CountRows(Filter(colUserResources, Status = "Active")),
+            Subtext: Text(CountRows(Filter(colUserResources, Status = "Active"))) & "/" & Text(gblResourceLimit) & " Resource Limit",
+            Icon: "Server"
+        },
+        {
+            Title: "Pending Requests",
+            Value: CountRows(Filter(colUserResources, Status = "Pending")),
+            Subtext: "Awaiting Approval",
+            Icon: "Clock"
+        },
+        {
+            Title: "Approved Resources",
+            Value: CountRows(Filter(colUserResources, Status = "Ready")),
+            Subtext: "Ready to Use",
+            Icon: "CheckCircle"
+        },
+        {
+            Title: "Resource Usage",
+            Value: Round(CountRows(Filter(colUserResources, Status = "Active")) / gblResourceLimit * 100) & "%",
+            Subtext: "Of Total Quota",
+            Icon: "AlertCircle"
+        }
+    ]
+);
+
+// Resource Types
+ClearCollect(
+    colResourceTypes,
+    [
+        {
+            Name: "Development VMs",
+            Description: "Windows/Linux development environments",
+            Limit: "2 per developer",
+            Icon: "Server"
+        },
+        {
+            Name: "Storage Accounts",
+            Description: "For development data and artifacts",
+            Limit: "1 per project",
+            Icon: "Database"
+        },
+        {
+            Name: "Key Vaults",
+            Description: "Secure credential storage",
+            Limit: "1 per project",
+            Icon: "Key"
+        }
+    ]
+);
+
+// User Resources
+ClearCollect(
+    colUserResources,
+    Filter(
+        Resources,
+        Owner = User().Email,
+        CreatedDate >= DateAdd(Now(), -30, Days)
+    )
+);
