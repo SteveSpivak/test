@@ -1,0 +1,292 @@
+Concurrent(
+
+//
+// Core Navigation Collection
+//
+ClearCollect(
+    colNavigation,
+    [
+        {
+            id: "nav_home",
+            title: "Home",
+            label: "Home",
+            icon: "Home",     // Using exact Home icon
+            screen: "scrHome",
+            order: 1
+        },
+        {
+            id: "nav_resources",
+            title: "Resources",
+            label: "Resources", 
+            icon: "Box",      // Using Box icon for resources
+            screen: "scrResources",
+            order: 2
+        },
+        {
+            id: "nav_history",
+            title: "History",
+            label: "History",
+            icon: "History",  // Using History icon
+            screen: "scrHistory",
+            order: 3
+        },
+        {
+            id: "nav_settings",
+            title: "Settings",
+            label: "Settings",
+            icon: "Settings", // Using Settings icon
+            screen: "scrSettings",
+            order: 4
+        }
+    ]
+),
+//
+// 1. Quick Actions Collection
+//
+ClearCollect(
+    colQuickActions,
+    [
+        {
+            id: "new_resource",
+            title: "New Resource",
+            description: "Deploy a new resource",
+            icon: "Plus",
+            bgColor: "blue",
+            action: "Deploy",
+            actionTitle: "Start Deployment",
+            actionColor: "blue"
+        },
+        {
+            id: "manage_resources",
+            title: "Manage Resources",
+            description: "View and manage existing resources",
+            icon: "Settings",
+            bgColor: "purple",
+            action: "View",
+            actionTitle: "View Resources",
+            actionColor: "purple"
+        },
+        {
+            id: "recent_activity",
+            title: "Recent Activity",
+            description: "View deployment history",
+            icon: "History",
+            bgColor: "green",
+            action: "View",
+            actionTitle: "View History",
+            actionColor: "green"
+        }
+    ]
+),
+
+//
+// 2. Available Modules Collection
+//
+ClearCollect(
+    colModules,
+    [
+        {
+            id: "vm_win",
+            name: "Windows VM",
+            description: "Configure and deploy",
+            icon: "Server",
+            color: "blue",
+            category: "Compute"
+        },
+        {
+            id: "vm_lin",
+            name: "Linux VM",
+            description: "Configure and deploy",
+            icon: "Server",
+            color: "orange",
+            category: "Compute"
+        },
+        {
+            id: "storage",
+            name: "Storage Account",
+            description: "Configure and deploy",
+            icon: "HardDrive",
+            color: "purple",
+            category: "Storage"
+        },
+        {
+            id: "keyvault",
+            name: "Key Vault",
+            description: "Configure and deploy",
+            icon: "Key",
+            color: "green",
+            category: "Security"
+        },
+        {
+            id: "sql_mi",
+            name: "SQL MI",
+            description: "Configure and deploy",
+            icon: "Database",
+            color: "red",
+            category: "Database"
+        },
+        {
+            id: "cognitive",
+            name: "Cognitive Services",
+            description: "Configure and deploy",
+            icon: "Cpu",
+            color: "yellow",
+            category: "AI"
+        },
+        {
+            id: "automation",
+            name: "Automation",
+            description: "Configure and deploy",
+            icon: "Cog",
+            color: "indigo",
+            category: "Automation"
+        },
+        {
+            id: "sql_server",
+            name: "SQL Server",
+            description: "Configure and deploy",
+            icon: "Database",
+            color: "pink",
+            category: "Database"
+        },
+        {
+            id: "app_service",
+            name: "App Service",
+            description: "Configure and deploy",
+            icon: "Cloud",
+            color: "teal",
+            category: "Web"
+        },
+        {
+            id: "dev_center",
+            name: "Dev Center",
+            description: "Configure and deploy",
+            icon: "Layout",
+            color: "cyan",
+            category: "Development"
+        }
+    ]
+),
+ClearCollect(
+   colResources,
+   [
+       {
+           id: "dev_vm",
+           name: "Development VM",
+           description: "Windows/Linux development environment",
+           icon: "Server",
+           color: "blue",
+           category: "Compute"
+       },
+       {
+           id: "storage",
+           name: "Storage Account", 
+           description: "Development storage",
+           icon: "Database",
+           color: "purple",
+           category: "Storage"
+       },
+       {
+           id: "keyvault",
+           name: "Key Vault",
+           description: "Secure credential storage", 
+           icon: "Key",
+           color: "green",
+           category: "Security"
+       }
+   ]
+);
+//
+// 3. Available Subscriptions - For new resource screen
+//
+ClearCollect(
+    colSubscriptions,
+    [
+        {
+            id: "sub1",
+            icon: "Building2",
+            color: "blue",
+            name: "Development Subscription",
+            status: "Active",
+            allowSelfService: true,
+            resourceGroups: 5,
+            owner: "admin@company.com",
+            quota: {
+                used: 15,
+                total: 25
+            },
+            tags: {
+                AllowSelfService: true,
+                Environment: "Development"
+            },
+            location: "israelcentral"
+        },
+        {
+            id: "sub2",
+             icon: "Building2",
+             color: "blue",
+            name: "Production Subscription",
+            status: "Active",
+            allowSelfService: true,
+            resourceGroups: 8,
+            owner: "admin@company.com",
+            quota: {
+                used: 20,
+                total: 30
+            },
+            tags: {
+                AllowSelfService: true,
+                Environment: "Production"
+            },
+            location: "israelcentral"
+        },
+        {
+            id: "sub3",
+             icon: "Building2",
+             color: "blue",
+            name: "Test Subscription",
+            status: "Active",
+            allowSelfService: false,
+            resourceGroups: 3,
+            owner: "admin@company.com",
+            quota: {
+                used: 5,
+                total: 10
+            },
+            tags: {
+                AllowSelfService: false,
+                Environment: "Test"
+            },
+            location: "israelcentral"
+        }
+    ]
+),
+// Progress Steps Collection
+ClearCollect(
+    colProgressSteps,
+    {
+        id: "subscription",
+        label: "Select Subscription",
+        order: 1,
+        icon: "Building2",
+        isComplete: false,
+        isCurrent: true
+    },
+    {
+        id: "resourceGroup",
+        label: "Resource Group",
+        order: 2,
+        icon: "Box",
+        isComplete: false,
+        isCurrent: false
+    },
+    {
+        id: "configuration",
+        label: "Configuration",
+        order: 3,
+        icon: "Settings",
+        isComplete: false,
+        isCurrent: false
+    }
+);
+)
