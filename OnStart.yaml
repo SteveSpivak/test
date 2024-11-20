@@ -288,5 +288,138 @@ ClearCollect(
         isComplete: false,
         isCurrent: false
     }
+),
+ ClearCollect(
+    colResources2 ,
+      { id: 1, name: "web-server-001", type: "Virtual Machine", status: "Running", location: "West Europe" },
+      { id: 2, name: "data-storage-002", type: "Storage Account", status: "Active", location: "East US" },
+      { id: 3, name: "key-vault-003", type: "Key Vault", status: "Active", location: "West Europe" },
+      { id: 4, name: "test-vm-004", type: "Virtual Machine", status: "Stopped", location: "Southeast Asia" },
+      { id: 5, name: "backup-storage-005", type: "Storage Account", status: "Active", location: "West US" },
+      { id: 6, name: "db-server-006", type: "Database", status: "Active", location: "Central US" },
+      { id: 7, name: "app-server-007", type: "Virtual Machine", status: "Running", location: "West Europe" },
+      { id: 8, name: "data-storage-008", type: "Storage Account", status: "Active", location: "East US" },
+      { id: 9, name: "key-vault-009", type: "Key Vault", status: "Active", location: "West Europe" },
+      { id: 10, name: "test-vm-010", type: "Virtual Machine", status: "Stopped", location: "Southeast Asia" }
+      // Add more resources as needed
+ ),
+
+    ClearCollect(
+    colVariables,
+      { id: 1, name: "vm_size", type: "string", value: "Standard_D2s_v3", module: "Compute" },
+      { id: 2, name: "storage_account_tier", type: "string", value: "Standard", module: "Storage" },
+      { id: 3, name: "sql_server_version", type: "string", value: "12.0", module: "Database" },
+      { id: 4, name: "network_bandwidth", type: "number", value: "100", module: "Compute" },
+      { id: 5, name: "backup_retention", type: "string", value: "30 days", module: "Storage" },
+      { id: 6, name: "db_backup_frequency", type: "string", value: "Daily", module: "Database" }
+    ),
+    // Collection for Resource Groups
+ClearCollect(
+    colResourceGroups,
+    [
+        {
+            subscriptionId: "0ab7b1b6-5c8e-4466-be17-4dfaf378a687",
+            name: "rg-dev-frontend-001",
+            location: "israelcentral",
+            status: "Active",
+            isLocked: false,
+            allowSelfService: true,
+            tags: {
+                BusinessCriticality: "General",
+                BusinessUnit: "Strauss Group",
+                CreateDate: Today(),
+                DeploymentBy: "SelfService",
+                Environment: "Development",
+                ManagedBy: "DevTeam",
+                OpsTeam: "CCOE",
+                ProjectName: "Frontend Development",
+                WorkloadName: "WebApp"
+            },
+            resources: [
+                {
+                    type: "VM_Win",
+                    name: "vm-dev-fe-001",
+                    status: "Active"
+                },
+                {
+                    type: "Storage_Account",
+                    name: "stdevfe001",
+                    status: "Active"
+                }
+            ],
+            createdBy: "developer@strauss-group.com",
+            createdOn: Today(),
+            lastModified: Today()
+        },
+        {
+            subscriptionId: "5f106ae9-0794-4702-a5ee-cbed11a70019",
+            name: "rg-dev-backend-001",
+            location: "israelcentral",
+            status: "Active",
+            isLocked: true,
+            allowSelfService: true,
+            tags: {
+                BusinessCriticality: "Critical",
+                BusinessUnit: "Strauss Group",
+                CreateDate: DateAdd(Today(), -30, 10),
+                DeploymentBy: "SelfService",
+                Environment: "Development",
+                ManagedBy: "BackendTeam",
+                OpsTeam: "CCOE",
+                ProjectName: "Backend Services",
+                WorkloadName: "API"
+            },
+            resources: [
+                {
+                    type: "VM_Win",
+                    name: "vm-dev-be-001",
+                    status: "Active"
+                },
+                {
+                    type: "Key_Vault",
+                    name: "kv-dev-be-001",
+                    status: "Active"
+                }
+            ],
+            createdBy: "backend@strauss-group.com",
+            createdOn: DateAdd(Today(), -30, 10),
+            lastModified: Today()
+        },
+        {
+            subscriptionId: "1a101401-e138-41f3-9784-28164684d577",
+            name: "rg-prod-shared-001",
+            location: "israelcentral",
+            status: "Active",
+            isLocked: false,
+            allowSelfService: false,
+            tags: {
+                BusinessCriticality: "Critical",
+                BusinessUnit: "Strauss Group",
+                CreateDate: DateAdd(Today(), -90, 10),
+                DeploymentBy: "CCOE",
+                Environment: "Production",
+                ManagedBy: "InfraTeam",
+                OpsTeam: "CCOE",
+                ProjectName: "Shared Services",
+                WorkloadName: "Infrastructure"
+            },
+            resources: [
+                {
+                    type: "Storage_Account",
+                    name: "stprodshared001",
+                    status: "Active"
+                },
+                {
+                    type: "Key_Vault",
+                    name: "kv-prod-shared-001",
+                    status: "Active"
+                }
+            ],
+            createdBy: "infra@strauss-group.com",
+            createdOn: DateAdd(Today(), -90, 10),
+            lastModified: DateAdd(Today(), -7, 10)
+        }
+    ]
 );
+
 )
