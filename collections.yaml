@@ -1,0 +1,198 @@
+// Load Master JSON into initial collection
+ClearCollect(
+    colFullConfig,
+    JSON('{
+        "deployment_subscription_id": "0ab7b1b6-5c8e-4466-be17-4dfaf378a687",
+        "management_subscription_id": "5f106ae9-0794-4702-a5ee-cbed11a70019",
+        "base_name": "selfservice-test-02",
+        "location": "israelcentral",
+        // ... rest of your JSON
+    }')
+);
+
+// 1. Core Configuration Collection
+ClearCollect(
+    colCoreConfig,
+    {
+        deploymentSubId: First(colFullConfig).deployment_subscription_id,
+        managementSubId: First(colFullConfig).management_subscription_id,
+        baseName: First(colFullConfig).base_name,
+        location: First(colFullConfig).location,
+        timestamp: Now()
+    }
+);
+
+// 2. Resource Group Tags Collection
+ClearCollect(
+    colResourceGroupTags,
+    First(colFullConfig).RG.tags
+);
+
+// 3. Virtual Machine Configuration
+ClearCollect(
+    colVMConfig,
+    {
+        vmSize: First(colFullConfig).VM_Win.vm.vm_size,
+        joinDomain: First(colFullConfig).VM_Win.vm.join_domain,
+        trustedLaunch: First(colFullConfig).VM_Win.vm.virtual_machine_trusted_launch,
+        name: First(colFullConfig).VM_Win.vm.bypass.vm.name,
+        imageOffer: First(colFullConfig).VM_Win.vm.bypass.vm.source_image_reference.offer
+    }
+);
+
+// 4. VM Tags Collection
+ClearCollect(
+    colVMTags,
+    AddColumns(
+        First(colFullConfig).VM_Win.vm.tags,
+        "ValidationStatus",
+        true
+    )
+);
+
+// 5. Storage Account Configuration
+ClearCollect(
+    colStorageConfig,
+    {
+        name: First(colFullConfig).Storage_Account.sa.bypass.sa.name,
+        isHnsEnabled: First(colFullConfig).Storage_Account.sa.bypass.sa.is_hns_enabled,
+        makePublic: First(colFullConfig).Storage_Account.sa.make_public,
+        defaultAction: First(colFullConfig).Storage_Account.sa.bypass.nr.default_action,
+        endpoints: {
+            blob: First(colFullConfig).Storage_Account.sa.create_blob_pl,
+            file: First(colFullConfig).Storage_Account.sa.create_file_pl,
+            table: First(colFullConfig).Storage_Account.sa.create_table_pl,
+            queue: First(colFullConfig).Storage_Account.sa.create_queue_pl
+        }
+    }
+);
+
+// 6. Key Vault Configuration
+ClearCollect(
+    colKeyVaultConfig,
+    First(colFullConfig).Key_Vault.kv
+);
+
+// 7. Deployment Status Collection
+ClearCollect(
+    colDeploymentStatus,
+    {
+        deploymentId: GUID(),
+        timestamp: Now(),
+        status: "Pending",
+        resourceGroups: [],
+        validationErrors: [],
+        currentStage: "InitialConfig"
+    }
+);
+
+// Helper Functions
+
+// Function to validate VM configuration
+Set(
+    varValidateVM,
+    If(
+        And(
+            !IsBlank(First(colVMConfig).vmSize),
+            !IsBlank(First(colVMConfig).name)
+        ),
+        {
+            isValid: true,
+            message: "VM configuration valid"
+        },
+        {
+            isValid: false,
+            message: "Required VM parameters missing"
+        }
+    )
+);
+
+// Function to validate Storage Account configuration
+Set(
+    varValidateStorage,
+    If(
+        And(
+            !IsBlank(First(colStorageConfig).name),
+            Or(
+                First(colStorageConfig).endpoints.blob,
+                First(colStorageConfig).endpoints.file,
+                First(colStorageConfig).endpoints.table,
+                First(colStorageConfig).endpoints.queue
+            )
+        ),
+        {
+            isValid: true,
+            message: "Storage configuration valid"
+        },
+        {
+            isValid: false,
+            message: "Invalid storage configuration"
+        }
+    )
+);
+
+// Function to prepare final deployment payload
+Set(
+    varPrepareDeployment,
+    {
+        subscriptionId: First(colCoreConfig).deploymentSubId,
+        resourceGroup: {
+            name: Concatenate(First(colCoreConfig).baseName, "-rg"),
+            location: First(colCoreConfig).location,
+            tags: colResourceGroupTags
+        },
+        resources: {
+            virtualMachine: First(colVMConfig),
+            storageAccount: First(colStorageConfig),
+            keyVault: First(colKeyVaultConfig)
+        },
+        metadata: {
+            deploymentId: First(colDeploymentStatus).deploymentId,
+            timestamp: Now(),
+            requestedBy: User().Email
+        }
+    }
+);
+
+// Usage Examples:
+
+/*
+// Initialize all collections
+Set(
+    varInitializeCollections,
+    Sequence(
+        ClearCollect(colFullConfig, ...),
+        Set(varCurrentStage, "Configuration"),
+        UpdateContext({locValidationComplete: false})
+    )
+);
+
+// Validate configurations
+Set(
+    varValidateAll,
+    If(
+        And(
+            varValidateVM.isValid,
+            varValidateStorage.isValid
+        ),
+        UpdateContext({locValidationComplete: true}),
+        Notify("Configuration validation failed", NotificationType.Error)
+    )
+);
+
+// Prepare for deployment
+Set(
+    varStartDeployment,
+    If(
+        locValidationComplete,
+        Patch(
+            colDeploymentStatus,
+            First(colDeploymentStatus),
+            {
+                status: "InProgress",
+                currentStage: "Deployment"
+            }
+        )
+    )
+);
+*/
