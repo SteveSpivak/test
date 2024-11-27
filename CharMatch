@@ -1,0 +1,21 @@
+If(
+    !IsMatch(txtResourceGroupName.Text, "^[a-zA-Z0-9][a-zA-Z0-9\-]{0,88}[a-zA-Z0-9]$"),
+    Notify("Invalid Resource Group Name. Ensure it is alphanumeric, no spaces, and less than 90 characters.", NotificationType.Error)
+)
+
+
+
+If(
+    CountRows(Filter(colResourceGroups, Value = txtResourceGroupName.Text)) > 0,
+    Notify("Resource Group Name already exists in the subscription.", NotificationType.Error)
+)
+
+
+
+If(
+    !IsBlank(txtResourceGroupName.Text) &&
+    IsMatch(txtResourceGroupName.Text, "^[a-zA-Z0-9][a-zA-Z0-9\-]{0,88}[a-zA-Z0-9]$") &&
+    CountRows(Filter(colResourceGroups, Value = txtResourceGroupName.Text)) = 0,
+    SubmitEnabled = true,
+    SubmitEnabled = false
+)
