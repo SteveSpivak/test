@@ -1,55 +1,28 @@
-App.Formulas.ValidateName = With(
-    {
-        resourcePattern: "^[a-zA-Z0-9\-\_\.]{3,90}$", // Regex for resource names
-        resourceGroupPattern: "^[a-zA-Z0-9\-\_]{1,90}$", // Regex for resource group names
-        lengthValidation: If(
-            Len(name) < minLength,
-            "Invalid: Name must be at least " & minLength & " characters long.",
-            If(Len(name) > maxLength, 
-                "Invalid: Name cannot exceed " & maxLength & " characters.", 
-                "Valid"
+ValidateName,
+    Function(
+        Name: Text,
+        Type: Text,
+        With(
+            {
+                Pattern: Switch(
+                    Type,
+                    "Resource", "^[a-zA-Z0-9\-\_\.]{3,90}$",
+                    "ResourceGroup", "^[a-zA-Z0-9\-\_]{1,90}$",
+                    "^[a-zA-Z0-9\-\_\.]{3,90}$" // Default to Resource validation
+                ),
+                MinLength: If(Type = "ResourceGroup", 1, 3),
+                MaxLength: 90,
+                LengthValid: Len(Name) >= MinLength && Len(Name) <= MaxLength,
+                RegexValid: IsMatch(Name, Pattern)
+            },
+            If(
+                !RegexValid,
+                "Invalid: Name contains invalid characters.",
+                If(
+                    !LengthValid,
+                    "Invalid: Name must be between " & MinLength & " and " & MaxLength & " characters.",
+                    "Valid"
+                )
             )
         )
-    },
-    If(
-        !IsMatch(name, pattern), 
-        "Invalid: Name does not meet character requirements.",
-        lengthValidation
     )
-);
-
-
-
-App.Formulas.ValidateNameDynamic = With(
-    {
-        pattern: Switch(
-            type,
-            "Resource", "^[a-zA-Z0-9\-\_\.]{3,90}$",
-            "ResourceGroup", "^[a-zA-Z0-9\-\_]{1,90}$",
-            "^[a-zA-Z0-9\-\_\.]{3,90}$" // Default to Resource validation
-        ),
-        minLength: If(type = "ResourceGroup", 1, 3),
-        maxLength: 90
-    },
-    App.Formulas.ValidateName
-);
-
-
-App.Formulas.ValidateNameDynamic(
-    txtResourceName.Text,
-    "Resource"
-)
-
-
-App.Formulas.ValidateNameDynamic(
-    txtResourceGroupName.Text,
-    "ResourceGroup"
-)
-
-
-
-If(
-    App.Formulas.ValidateNameDynamic(txtResourceName.Text, "Resource") = "Valid", 
-    "Valid", 
-    App.Formulas.ValidateNameDynamic(txtResourceName.Text, "Resource")
-)
