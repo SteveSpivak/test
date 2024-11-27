@@ -1,45 +1,55 @@
-App.Formulas.ValidateForm = With(
+App.Formulas.ValidateName = With(
     {
-        resourceNamePattern: "^[a-zA-Z0-9\-\_\.]{3,90}$", // Regex for resource names
-        resourceGroupNamePattern: "^[a-zA-Z0-9\-\_]{1,90}$", // Regex for resource group names
-        subscriptionValid: !IsBlank(selectedSubscription), // Ensure a subscription is selected
-        locationValid: !IsBlank(selectedLocation), // Ensure a location is selected
-        tagsValid: !IsBlank(tags) // Ensure at least one tag is provided
-    },
-    {
-        resourceNameValidation: If(
-            !IsMatch(resourceName, resourceNamePattern), 
-            "Invalid: Resource Name must be 3–90 characters, alphanumeric, and may include '-', '_', or '.'", 
-            "Valid"
-        ),
-        resourceGroupNameValidation: If(
-            !IsMatch(resourceGroupName, resourceGroupNamePattern), 
-            "Invalid: Resource Group Name must be 1–90 characters, alphanumeric, and may include '-' or '_'", 
-            "Valid"
-        ),
-        subscriptionValidation: If(
-            !subscriptionValid, 
-            "Invalid: Subscription must be selected.", 
-            "Valid"
-        ),
-        locationValidation: If(
-            !locationValid, 
-            "Invalid: Location must be selected.", 
-            "Valid"
-        ),
-        tagsValidation: If(
-            !tagsValid, 
-            "Invalid: At least one tag must be provided.", 
-            "Valid"
-        ),
-        overallValidation: If(
-            resourceNameValidation = "Valid" &&
-            resourceGroupNameValidation = "Valid" &&
-            subscriptionValidation = "Valid" &&
-            locationValidation = "Valid" &&
-            tagsValidation = "Valid", 
-            "Valid", 
-            "Invalid"
+        resourcePattern: "^[a-zA-Z0-9\-\_\.]{3,90}$", // Regex for resource names
+        resourceGroupPattern: "^[a-zA-Z0-9\-\_]{1,90}$", // Regex for resource group names
+        lengthValidation: If(
+            Len(name) < minLength,
+            "Invalid: Name must be at least " & minLength & " characters long.",
+            If(Len(name) > maxLength, 
+                "Invalid: Name cannot exceed " & maxLength & " characters.", 
+                "Valid"
+            )
         )
-    }
+    },
+    If(
+        !IsMatch(name, pattern), 
+        "Invalid: Name does not meet character requirements.",
+        lengthValidation
+    )
 );
+
+
+
+App.Formulas.ValidateNameDynamic = With(
+    {
+        pattern: Switch(
+            type,
+            "Resource", "^[a-zA-Z0-9\-\_\.]{3,90}$",
+            "ResourceGroup", "^[a-zA-Z0-9\-\_]{1,90}$",
+            "^[a-zA-Z0-9\-\_\.]{3,90}$" // Default to Resource validation
+        ),
+        minLength: If(type = "ResourceGroup", 1, 3),
+        maxLength: 90
+    },
+    App.Formulas.ValidateName
+);
+
+
+App.Formulas.ValidateNameDynamic(
+    txtResourceName.Text,
+    "Resource"
+)
+
+
+App.Formulas.ValidateNameDynamic(
+    txtResourceGroupName.Text,
+    "ResourceGroup"
+)
+
+
+
+If(
+    App.Formulas.ValidateNameDynamic(txtResourceName.Text, "Resource") = "Valid", 
+    "Valid", 
+    App.Formulas.ValidateNameDynamic(txtResourceName.Text, "Resource")
+)
