@@ -1,0 +1,45 @@
+App.Formulas.ValidateForm = With(
+    {
+        resourceNamePattern: "^[a-zA-Z0-9\-\_\.]{3,90}$", // Regex for resource names
+        resourceGroupNamePattern: "^[a-zA-Z0-9\-\_]{1,90}$", // Regex for resource group names
+        subscriptionValid: !IsBlank(selectedSubscription), // Ensure a subscription is selected
+        locationValid: !IsBlank(selectedLocation), // Ensure a location is selected
+        tagsValid: !IsBlank(tags) // Ensure at least one tag is provided
+    },
+    {
+        resourceNameValidation: If(
+            !IsMatch(resourceName, resourceNamePattern), 
+            "Invalid: Resource Name must be 3–90 characters, alphanumeric, and may include '-', '_', or '.'", 
+            "Valid"
+        ),
+        resourceGroupNameValidation: If(
+            !IsMatch(resourceGroupName, resourceGroupNamePattern), 
+            "Invalid: Resource Group Name must be 1–90 characters, alphanumeric, and may include '-' or '_'", 
+            "Valid"
+        ),
+        subscriptionValidation: If(
+            !subscriptionValid, 
+            "Invalid: Subscription must be selected.", 
+            "Valid"
+        ),
+        locationValidation: If(
+            !locationValid, 
+            "Invalid: Location must be selected.", 
+            "Valid"
+        ),
+        tagsValidation: If(
+            !tagsValid, 
+            "Invalid: At least one tag must be provided.", 
+            "Valid"
+        ),
+        overallValidation: If(
+            resourceNameValidation = "Valid" &&
+            resourceGroupNameValidation = "Valid" &&
+            subscriptionValidation = "Valid" &&
+            locationValidation = "Valid" &&
+            tagsValidation = "Valid", 
+            "Valid", 
+            "Invalid"
+        )
+    }
+);
