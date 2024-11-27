@@ -1,28 +1,46 @@
-ValidateName,
-    Function(
-        Name: Text,
-        Type: Text,
-        With(
-            {
-                Pattern: Switch(
-                    Type,
-                    "Resource", "^[a-zA-Z0-9\-\_\.]{3,90}$",
-                    "ResourceGroup", "^[a-zA-Z0-9\-\_]{1,90}$",
-                    "^[a-zA-Z0-9\-\_\.]{3,90}$" // Default to Resource validation
-                ),
-                MinLength: If(Type = "ResourceGroup", 1, 3),
-                MaxLength: 90,
-                LengthValid: Len(Name) >= MinLength && Len(Name) <= MaxLength,
-                RegexValid: IsMatch(Name, Pattern)
-            },
+ValidateName(Name: Text, Type: Text): Text = 
+    With(
+        {
+            Pattern: Switch(
+                Type,
+                "Resource", "^[a-zA-Z0-9\\-_.]{3,90}$",
+                "ResourceGroup", "^[a-zA-Z0-9\\-_]{1,90}$",
+                "^[a-zA-Z0-9\\-_.]{3,90}$" // Default to Resource validation
+            ),
+            MinLength: If(Type = "ResourceGroup", 1, 3),
+            MaxLength: 90,
+            LengthValid: Len(Name) >= MinLength && Len(Name) <= MaxLength,
+            RegexValid: IsMatch(Name, Pattern)
+        },
+        If(
+            !RegexValid, 
+            "Invalid: Name contains invalid characters.", 
             If(
-                !RegexValid,
-                "Invalid: Name contains invalid characters.",
-                If(
-                    !LengthValid,
-                    "Invalid: Name must be between " & MinLength & " and " & MaxLength & " characters.",
-                    "Valid"
-                )
+                !LengthValid, 
+                "Invalid: Name must be between " & MinLength & " and " & MaxLength & " characters.", 
+                "Valid"
             )
         )
-    )
+    );
+
+
+ValidateName(txtResourceName.Text, "Resource")
+
+ValidateName(txtResourceGroupName.Text, "ResourceGroup")
+
+
+If(
+    ValidateName(txtResourceName.Text, "Resource") = "Valid", 
+    "Valid Name", 
+    ValidateName(txtResourceName.Text, "Resource")
+)
+
+
+DisplayMode = If(
+    ValidateName(txtResourceName.Text, "Resource") = "Valid" &&
+    ValidateName(txtResourceGroupName.Text, "ResourceGroup") = "Valid",
+    DisplayMode.Edit,
+    DisplayMode.Disabled
+)
+
+
