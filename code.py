@@ -1,11 +1,55 @@
 using System;
+using System.Net;
+using System.Net.Http;
+using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
-public static class Script
+public class Script : ScriptBase
 {
-    public static string Transform(string terraformVariables)
+    public override async Task<HttpResponseMessage> ExecuteAsync()
+    {
+        // Check if the operation ID matches what is specified in the OpenAPI definition of the connector
+        if (this.Context.OperationId == "ParseTerraformVariables")
+        {
+            return await this.HandleTerraformParsing().ConfigureAwait(false);
+        }
+
+        // Handle an invalid operation ID
+        HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.BadRequest);
+        response.Content = CreateJsonContent($"Unknown operation ID '{this.Context.OperationId}'");
+        return response;
+    }
+
+    private async Task<HttpResponseMessage> HandleTerraformParsing()
+    {
+        HttpResponseMessage response;
+
+        // Read the incoming content as a string
+        var contentAsString = await this.Context.Request.Content.ReadAsStringAsync().ConfigureAwait(false);
+
+        try
+        {
+            // Call the function to parse Terraform variables and return structured JSON
+            string jsonOutput = Transform(contentAsString);
+
+            // Create a success response with the JSON output
+            response = new HttpResponseMessage(HttpStatusCode.OK);
+            response.Content = CreateJsonContent(jsonOutput);
+            return response;
+        }
+        catch (Exception ex)
+        {
+            // Return an error response in case of failure
+            response = new HttpResponseMessage(HttpStatusCode.InternalServerError);
+            response.Content = CreateJsonContent($"Error: {ex.Message}");
+            return response;
+        }
+    }
+
+    private string Transform(string terraformVariables)
     {
         try
         {
@@ -72,7 +116,13 @@ public static class Script
         }
         catch (Exception ex)
         {
-            return $"Error: {ex.Message}";
+            // Throw an error if something goes wrong
+            throw new Exception($"Parsing Error: {ex.Message}");
         }
+    }
+
+    private HttpContent CreateJsonContent(string content)
+    {
+        return new StringContent(content, System.Text.Encoding.UTF8, "application/json");
     }
 }
