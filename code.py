@@ -1,49 +1,78 @@
-import json
-import re
+using System;
+using System.Collections.Generic;
+using System.Text.RegularExpressions;
+using Newtonsoft.Json;
 
-def parse_variable(variable_block):
-    # Extract variable name
-    match_name = re.search(r'variable\s+"(\w+)"', variable_block)
-    name = match_name.group(1) if match_name else None
-    
-    # Extract variable type
-    match_type = re.search(r'type\s*=\s*(\w+)', variable_block)
-    var_type = match_type.group(1) if match_type else "unknown"
-    
-    # Extract default value
-    default_match = re.search(r'default\s*=\s*(.+)', variable_block)
-    default_value = default_match.group(1).strip() if default_match else None
+public static class Script
+{
+    public static string Transform(string terraformVariables)
+    {
+        try
+        {
+            // Prepare the output dictionary to hold parsed variables
+            var result = new Dictionary<string, object>();
 
-    # Extract validation (if present)
-    validation_condition = None
-    error_message = None
-    validation_match = re.search(r'validation\s*{[^}]+}', variable_block, re.DOTALL)
-    if validation_match:
-        validation_block = validation_match.group(0)
-        condition_match = re.search(r'condition\s*=\s*(.+)', validation_block)
-        error_message_match = re.search(r'error_message\s*=\s*"(.+)"', validation_block)
-        validation_condition = condition_match.group(1).strip() if condition_match else None
-        error_message = error_message_match.group(1).strip() if error_message_match else None
+            // Use a regex to identify variable blocks
+            string variablePattern = @"variable\s+""(?<name>[^""]+)""\s*{(?<content>[\s\S]*?)}";
+            var variableMatches = Regex.Matches(terraformVariables, variablePattern);
 
-    return {
-        "name": name,
-        "type": var_type,
-        "default": default_value,
-        "validation": {
-            "condition": validation_condition,
-            "error_message": error_message
+            foreach (Match match in variableMatches)
+            {
+                string variableName = match.Groups["name"].Value;
+                string variableContent = match.Groups["content"].Value;
+
+                // Parse each variable's content into a dictionary
+                var variableDetails = new Dictionary<string, object>();
+
+                // Match individual key-value pairs within the variable block
+                string keyValuePattern = @"(?<key>\w+)\s*=\s*(?<value>.+)";
+                var keyValueMatches = Regex.Matches(variableContent, keyValuePattern);
+
+                foreach (Match keyValueMatch in keyValueMatches)
+                {
+                    string key = keyValueMatch.Groups["key"].Value.Trim();
+                    string value = keyValueMatch.Groups["value"].Value.Trim();
+
+                    // Handle different data types (string, list, boolean, etc.)
+                    if (value.StartsWith("\"") && value.EndsWith("\""))
+                    {
+                        // Remove quotes for string values
+                        value = value.Trim('"');
+                        variableDetails[key] = value;
+                    }
+                    else if (value.StartsWith("[") && value.EndsWith("]"))
+                    {
+                        // Convert list values into an array
+                        value = value.Trim('[', ']');
+                        variableDetails[key] = value.Split(',');
+                    }
+                    else if (value.Equals("true", StringComparison.OrdinalIgnoreCase) || value.Equals("false", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Handle boolean values
+                        variableDetails[key] = bool.Parse(value);
+                    }
+                    else if (int.TryParse(value, out int intValue))
+                    {
+                        // Handle integer values
+                        variableDetails[key] = intValue;
+                    }
+                    else
+                    {
+                        // Default to treating the value as a string
+                        variableDetails[key] = value;
+                    }
+                }
+
+                // Add the parsed variable to the result dictionary
+                result[variableName] = variableDetails;
+            }
+
+            // Convert the result to a JSON string
+            return JsonConvert.SerializeObject(result, Formatting.Indented);
+        }
+        catch (Exception ex)
+        {
+            return $"Error: {ex.Message}";
         }
     }
-
-# Test Example
-variable_block = """
-variable "base_name" {
-  type = string
-  default = "prod"
-  validation {
-    condition     = "len(value) <= 15"
-    error_message = "Base name must be 15 characters or less."
-  }
 }
-"""
-print(json.dumps(parse_variable(variable_block), indent=4))
