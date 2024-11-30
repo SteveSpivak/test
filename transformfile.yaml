@@ -1,0 +1,52 @@
+/*
+Transform a Terraform variable block into JSON format.
+Input: Terraform variable block as a string.
+Output: JSON-like structure as a string.
+*/
+
+With(
+    {
+        // Sample Terraform variable block input
+        terraformVariable: "variable \"base_name\" {\n  type = string\n}",
+
+        // Extract the variable name
+        variableName: Mid(
+            terraformVariable,
+            Find("\"", terraformVariable) + 1,
+            Find("\"", Mid(terraformVariable, Find("\"", terraformVariable) + 1)) - 1
+        ),
+
+        // Extract the variable block content
+        contentBlock: Mid(
+            terraformVariable,
+            Find("{", terraformVariable) + 1,
+            Find("}", terraformVariable) - Find("{", terraformVariable) - 1
+        ),
+
+        // Split the content block into lines and process key-value pairs
+        keyValuePairs: ForAll(
+            Split(contentBlock, "\n"),
+            If(
+                // Only process lines with "=" and not empty
+                !IsBlank(ThisRecord.Result) && Find("=", ThisRecord.Result) > 0,
+                {
+                    key: Trim(First(Split(ThisRecord.Result, "=")).Result),
+                    value: Trim(Last(Split(ThisRecord.Result, "=")).Result)
+                }
+            )
+        ),
+
+        // Generate JSON structure
+        jsonResult: "{"" & variableName & "": {" & Concat(
+            keyValuePairs,
+            If(
+                !IsBlank(key),
+                """ & key & "": """ & value & """",
+                ""
+            ),
+            ","
+        ) & "}}"
+    },
+    // Output the JSON result
+    jsonResult
+)
