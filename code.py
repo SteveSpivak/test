@@ -1,147 +1,79 @@
-using System;
-using System.Net;
-using System.Net.Http;
-using System.Threading.Tasks;
-using Newtonsoft.Json.Linq;
-
 public class Script : ScriptBase
 {
     public override async Task<HttpResponseMessage> ExecuteAsync()
     {
-        if (this.Context.OperationId != "ParseSingleVariable")
+        // Check if the operation ID matches what is specified in the OpenAPI definition
+        if (this.Context.OperationId == "ParseSingleVariable")
         {
-            return new HttpResponseMessage(HttpStatusCode.BadRequest)
-            {
-                Content = CreateJsonContent($"Unknown operation ID '{this.Context.OperationId}'")
-            };
+            return await this.HandleParseOperation().ConfigureAwait(false);
         }
-
-        // Read and validate the JSON input
-        try
-        {
-            var requestContent = await this.Context.Request.Content.ReadAsStringAsync().ConfigureAwait(false);
-            var jsonRequest = JObject.Parse(requestContent);
-            
-            if (!jsonRequest.ContainsKey("variableText"))
-            {
-                return new HttpResponseMessage(HttpStatusCode.BadRequest)
-                {
-                    Content = CreateJsonContent("Missing required 'variableText' field in request")
-                };
-            }
-
-            string variableText = jsonRequest["variableText"].ToString();
-            string jsonOutput = ConvertVariableToJson(variableText);
-
-            return new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = CreateJsonContent(jsonOutput)
-            };
-        }
-        catch (JsonReaderException ex)
-        {
-            return new HttpResponseMessage(HttpStatusCode.BadRequest)
-            {
-                Content = CreateJsonContent($"Invalid JSON in request: {ex.Message}")
-            };
-        }
-        catch (Exception ex)
-        {
-            return new HttpResponseMessage(HttpStatusCode.InternalServerError)
-            {
-                Content = CreateJsonContent($"Error processing request: {ex.Message}")
-            };
-        }
-    }
-
-    private string ConvertVariableToJson(string variableText)
-    {
-        try
-        {
-            variableText = variableText.Trim();
-            
-            // Enhanced variable name extraction with validation
-            string variableName = ExtractVariableName(variableText);
-            if (string.IsNullOrEmpty(variableName))
-            {
-                throw new Exception("Could not extract variable name");
-            }
-
-            // Extract and parse the content block
-            string contentBlock = ExtractBetween(variableText, "{", "}");
-            var contentAsJson = ParseVariableContent(contentBlock);
-
-            return new JObject
-            {
-                [variableName] = contentAsJson
-            }.ToString(Newtonsoft.Json.Formatting.Indented);
-        }
-        catch (Exception ex)
-        {
-            throw new Exception($"Error parsing Terraform variable: {ex.Message}");
-        }
-    }
-
-    private string ExtractVariableName(string text)
-    {
-        var match = System.Text.RegularExpressions.Regex.Match(
-            text,
-            @"variable\s+""([^""]+)""");
         
-        return match.Success ? match.Groups[1].Value : string.Empty;
+        // Handle invalid operation ID
+        HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.BadRequest);
+        response.Content = CreateJsonContent($"Unknown operation ID '{this.Context.OperationId}'");
+        return response;
     }
 
-    private JObject ParseVariableContent(string content)
+    private async Task<HttpResponseMessage> HandleParseOperation()
     {
-        var result = new JObject();
-        var lines = content.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
-            .Select(l => l.Trim())
-            .Where(l => !string.IsNullOrEmpty(l) && !l.StartsWith("#"));
+        // Read and parse the JSON input
+        var contentAsString = await this.Context.Request.Content.ReadAsStringAsync().ConfigureAwait(false);
+        var contentAsJson = JObject.Parse(contentAsString);
 
-        foreach (var line in lines)
+        try
         {
-            var parts = line.Split(new[] { '=' }, 2);
-            if (parts.Length != 2) continue;
-
-            string key = parts[0].Trim();
-            string value = parts[1].Trim();
-
-            // Handle special types
-            if (value.StartsWith("optional("))
+            // Get the variable text from the input JSON
+            string variableText = (string)contentAsJson["variableText"];
+            
+            // Extract variable name
+            string variableName = ExtractBetween(variableText, "variable \"", "\" {");
+            
+            // Extract content block
+            string contentBlock = ExtractBetween(variableText, "{", "}");
+            
+            // Parse the content block into a JObject
+            var contentAsJObject = new JObject();
+            string[] lines = contentBlock.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+            
+            foreach (var line in lines)
             {
-                value = ExtractBetween(value, "optional(", ")");
-            }
-            else if (value.StartsWith("list(") || 
-                     value.StartsWith("map(") || 
-                     value.StartsWith("object("))
-            {
-                value = "complex_type";
+                string trimmedLine = line.Trim();
+                if (string.IsNullOrEmpty(trimmedLine) || trimmedLine.StartsWith("#"))
+                    continue;
+
+                string[] parts = trimmedLine.Split('=');
+                if (parts.Length == 2)
+                {
+                    string key = parts[0].Trim();
+                    string value = parts[1].Trim();
+                    contentAsJObject[key] = value;
+                }
             }
 
-            result[key] = value;
+            // Create the output JSON
+            JObject output = new JObject
+            {
+                [variableName] = contentAsJObject
+            };
+
+            // Return success response
+            var response = new HttpResponseMessage(HttpStatusCode.OK);
+            response.Content = CreateJsonContent(output.ToString());
+            return response;
         }
-
-        return result;
+        catch (Exception ex)
+        {
+            // Return error response
+            var response = new HttpResponseMessage(HttpStatusCode.BadRequest);
+            response.Content = CreateJsonContent($"Error parsing variable: {ex.Message}");
+            return response;
+        }
     }
 
     private string ExtractBetween(string text, string start, string end)
     {
-        int startIndex = text.IndexOf(start);
-        if (startIndex == -1) return string.Empty;
-        
-        startIndex += start.Length;
+        int startIndex = text.IndexOf(start) + start.Length;
         int endIndex = text.IndexOf(end, startIndex);
-        if (endIndex == -1) return string.Empty;
-        
         return text.Substring(startIndex, endIndex - startIndex).Trim();
-    }
-
-    private HttpContent CreateJsonContent(string content)
-    {
-        return new StringContent(
-            content,
-            System.Text.Encoding.UTF8,
-            "application/json"
-        );
     }
 }
