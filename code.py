@@ -2,38 +2,35 @@ using System;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
-using System.Collections.Generic;
-using System.Text.RegularExpressions;
-using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 public class Script : ScriptBase
 {
     public override async Task<HttpResponseMessage> ExecuteAsync()
     {
-        // Check if the operation ID matches what is specified in the OpenAPI definition of the connector
-        if (this.Context.OperationId == "ParseTerraformVariables")
+        // Check the operation ID
+        if (this.Context.OperationId == "ParseSingleVariable")
         {
-            return await this.HandleTerraformParsing().ConfigureAwait(false);
+            return await this.ParseVariable().ConfigureAwait(false);
         }
 
-        // Handle an invalid operation ID
+        // Handle invalid operation ID
         HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.BadRequest);
         response.Content = CreateJsonContent($"Unknown operation ID '{this.Context.OperationId}'");
         return response;
     }
 
-    private async Task<HttpResponseMessage> HandleTerraformParsing()
+    private async Task<HttpResponseMessage> ParseVariable()
     {
         HttpResponseMessage response;
 
-        // Read the incoming content as a string
+        // Read the incoming content (Terraform variable text)
         var contentAsString = await this.Context.Request.Content.ReadAsStringAsync().ConfigureAwait(false);
 
         try
         {
-            // Call the function to parse Terraform variables and return structured JSON
-            string jsonOutput = Transform(contentAsString);
+            // Call the function to transform the variable block into JSON
+            string jsonOutput = ConvertVariableToJson(contentAsString);
 
             // Create a success response with the JSON output
             response = new HttpResponseMessage(HttpStatusCode.OK);
@@ -42,83 +39,77 @@ public class Script : ScriptBase
         }
         catch (Exception ex)
         {
-            // Return an error response in case of failure
+            // Handle errors
             response = new HttpResponseMessage(HttpStatusCode.InternalServerError);
             response.Content = CreateJsonContent($"Error: {ex.Message}");
             return response;
         }
     }
 
-    private string Transform(string terraformVariables)
+    private string ConvertVariableToJson(string variableText)
     {
         try
         {
-            // Prepare the output dictionary to hold parsed variables
-            var result = new Dictionary<string, object>();
+            // Clean up input and split the text into manageable parts
+            variableText = variableText.Trim();
 
-            // Use a regex to identify variable blocks
-            string variablePattern = @"variable\s+""(?<name>[^""]+)""\s*{(?<content>[\s\S]*?)}";
-            var variableMatches = Regex.Matches(terraformVariables, variablePattern);
+            // Find the variable name using basic string operations
+            string variableName = ExtractBetween(variableText, "variable \"", "\" {");
 
-            foreach (Match match in variableMatches)
+            // Find the content block within the variable definition
+            string contentBlock = ExtractBetween(variableText, "{", "}");
+
+            // Parse the content block into key-value pairs
+            var contentAsJson = new JObject();
+            string[] lines = contentBlock.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (var line in lines)
             {
-                string variableName = match.Groups["name"].Value;
-                string variableContent = match.Groups["content"].Value;
+                // Skip comments or empty lines
+                if (line.Trim().StartsWith("#") || string.IsNullOrWhiteSpace(line))
+                    continue;
 
-                // Parse each variable's content into a dictionary
-                var variableDetails = new Dictionary<string, object>();
-
-                // Match individual key-value pairs within the variable block
-                string keyValuePattern = @"(?<key>\w+)\s*=\s*(?<value>.+)";
-                var keyValueMatches = Regex.Matches(variableContent, keyValuePattern);
-
-                foreach (Match keyValueMatch in keyValueMatches)
+                // Extract key-value pairs
+                string[] parts = line.Split('=');
+                if (parts.Length == 2)
                 {
-                    string key = keyValueMatch.Groups["key"].Value.Trim();
-                    string value = keyValueMatch.Groups["value"].Value.Trim();
+                    string key = parts[0].Trim();
+                    string value = parts[1].Trim();
 
-                    // Handle different data types (string, list, boolean, etc.)
-                    if (value.StartsWith("\"") && value.EndsWith("\""))
+                    // Handle optional fields and their types
+                    if (value.StartsWith("optional("))
                     {
-                        // Remove quotes for string values
-                        value = value.Trim('"');
-                        variableDetails[key] = value;
+                        value = ExtractBetween(value, "optional(", ")");
                     }
-                    else if (value.StartsWith("[") && value.EndsWith("]"))
+                    else if (value.StartsWith("list(") || value.StartsWith("map(") || value.StartsWith("object("))
                     {
-                        // Convert list values into an array
-                        value = value.Trim('[', ']');
-                        variableDetails[key] = value.Split(',');
+                        value = "complex type"; // Placeholder for complex types
                     }
-                    else if (value.Equals("true", StringComparison.OrdinalIgnoreCase) || value.Equals("false", StringComparison.OrdinalIgnoreCase))
-                    {
-                        // Handle boolean values
-                        variableDetails[key] = bool.Parse(value);
-                    }
-                    else if (int.TryParse(value, out int intValue))
-                    {
-                        // Handle integer values
-                        variableDetails[key] = intValue;
-                    }
-                    else
-                    {
-                        // Default to treating the value as a string
-                        variableDetails[key] = value;
-                    }
+
+                    // Add the key-value pair to the JSON object
+                    contentAsJson[key] = value;
                 }
-
-                // Add the parsed variable to the result dictionary
-                result[variableName] = variableDetails;
             }
 
-            // Convert the result to a JSON string
-            return JsonConvert.SerializeObject(result, Formatting.Indented);
+            // Wrap the variable name and content into a JSON structure
+            var result = new JObject
+            {
+                [variableName] = contentAsJson
+            };
+
+            return result.ToString(Newtonsoft.Json.Formatting.Indented);
         }
         catch (Exception ex)
         {
-            // Throw an error if something goes wrong
-            throw new Exception($"Parsing Error: {ex.Message}");
+            throw new Exception($"Error while parsing variable: {ex.Message}");
         }
+    }
+
+    private string ExtractBetween(string text, string start, string end)
+    {
+        int startIndex = text.IndexOf(start) + start.Length;
+        int endIndex = text.IndexOf(end, startIndex);
+        return text.Substring(startIndex, endIndex - startIndex).Trim();
     }
 
     private HttpContent CreateJsonContent(string content)
