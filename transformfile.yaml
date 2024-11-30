@@ -1,42 +1,60 @@
 With(
     {
-        // Input Terraform variable block
-        terraformVariable: "variable ""base_name"" {\n  type = string\n}",
+        terraformFile: "<INSERT FULL TERRAFORM TEXT HERE>",
 
-        // Extract the variable name
-        variableName: Mid(
-            terraformVariable,
-            Find("""", terraformVariable) + 1,
-            Find("""", Mid(terraformVariable, Find("""", terraformVariable) + 1)) - 1
-        ),
+        // Step 1: Split into Blocks by "variable"
+        variableBlocks: Split(terraformFile, "variable"),
 
-        // Extract the variable content block
-        contentBlock: Mid(
-            terraformVariable,
-            Find("{", terraformVariable) + 1,
-            Find("}", terraformVariable) - Find("{", terraformVariable) - 1
+        // Step 2: Parse Each Block
+        parsedVariables: ForAll(
+            Drop(variableBlocks, 1), // Skip the first empty block
+            With(
+                {
+                    variableText: ThisRecord.Result,
+
+                    // Extract Variable Name
+                    variableName: Mid(
+                        variableText,
+                        Find("\"", variableText) + 1,
+                        Find("\"", Mid(variableText, Find("\"", variableText) + 1)) - 1
+                    ),
+
+                    // Extract Content Block
+                    contentBlock: Mid(
+                        variableText,
+                        Find("{", variableText) + 1,
+                        Find("}", variableText) - Find("{", variableText) - 1
+                    ),
+
+                    // Extract Default Value if Present
+                    defaultBlock: If(
+                        Find("default", variableText) > 0,
+                        Mid(
+                            variableText,
+                            Find("default =", variableText) + 8,
+                            Find("\n", Mid(variableText, Find("default =", variableText) + 8)) - 1
+                        ),
+                        Blank()
+                    ),
+
+                    // Recursive Function to Parse Nested Types
+                    parseType: If(
+                        Find("map", contentBlock) > 0,
+                        "{map: " & Text(parseType(Mid(contentBlock, Find("(", contentBlock) + 1, Find(")", contentBlock) - 1))) & "}",
+                        If(
+                            Find("list", contentBlock) > 0,
+                            "{list: " & Text(parseType(Mid(contentBlock, Find("(", contentBlock) + 1, Find(")", contentBlock) - 1))) & "}",
+                            contentBlock
+                        )
+                    )
+                },
+                // Step 3: Build JSON Object for Each Variable
+                "{""" & variableName & """: {" & 
+                    """type"": """ & parseType & """, " &
+                    """default"": """ & defaultBlock & """}}"
+            )
         )
     },
-    // Process contentBlock to create JSON
-    With(
-        {
-            // Extract key-value pairs from contentBlock
-            keyValuePairs: ForAll(
-                Split(contentBlock, Char(10)), // Split by newline
-                If(
-                    !IsBlank(ThisRecord.Result) && Find("=", ThisRecord.Result) > 0, // Lines with "="
-                    {
-                        key: Trim(First(Split(ThisRecord.Result, "=")).Result), // Extract key
-                        value: Trim(Last(Split(ThisRecord.Result, "=")).Result) // Extract value
-                    }
-                )
-            )
-        },
-        // Construct JSON result
-        "{""" & variableName & """: {" & Concat(
-            keyValuePairs,
-            """ & ThisRecord.key & """: """ & ThisRecord.value & """",
-            ","
-        ) & "}}"
-    )
+    // Step 4: Combine All Variables into a Single JSON
+    "{" & Concat(parsedVariables, ThisRecord.Result, ", ") & "}"
 )
