@@ -1,52 +1,42 @@
 With(
     {
-        // Sample Terraform variable block input
-        terraformVariable: "variable ""base_name"" {\n  type = string\n}"
+        // Input Terraform variable block
+        terraformVariable: "variable ""base_name"" {\n  type = string\n}",
+
+        // Extract the variable name
+        variableName: Mid(
+            terraformVariable,
+            Find("""", terraformVariable) + 1,
+            Find("""", Mid(terraformVariable, Find("""", terraformVariable) + 1)) - 1
+        ),
+
+        // Extract the variable content block
+        contentBlock: Mid(
+            terraformVariable,
+            Find("{", terraformVariable) + 1,
+            Find("}", terraformVariable) - Find("{", terraformVariable) - 1
+        )
     },
+    // Process contentBlock to create JSON
     With(
         {
-            // Extract the variable name
-            variableName: Mid(
-                terraformVariable,
-                Find("""", terraformVariable) + 1,
-                Find("""", Mid(terraformVariable, Find("""", terraformVariable) + 1)) - 1
-            ),
-
-            // Extract the variable block content
-            contentBlock: Mid(
-                terraformVariable,
-                Find("{", terraformVariable) + 1,
-                Find("}", terraformVariable) - Find("{", terraformVariable) - 1
+            // Extract key-value pairs from contentBlock
+            keyValuePairs: ForAll(
+                Split(contentBlock, Char(10)), // Split by newline
+                If(
+                    !IsBlank(ThisRecord.Result) && Find("=", ThisRecord.Result) > 0, // Lines with "="
+                    {
+                        key: Trim(First(Split(ThisRecord.Result, "=")).Result), // Extract key
+                        value: Trim(Last(Split(ThisRecord.Result, "=")).Result) // Extract value
+                    }
+                )
             )
         },
-        With(
-            {
-                // Split the content block into lines and process key-value pairs
-                keyValuePairs: ForAll(
-                    Split(contentBlock, Char(10)), // Split by newline (Char(10))
-                    If(
-                        // Only process lines with "=" and not empty
-                        !IsBlank(ThisRecord.Result) && Find("=", ThisRecord.Result) > 0,
-                        {
-                            key: Trim(First(Split(ThisRecord.Result, "=")).Result),
-                            value: Trim(Last(Split(ThisRecord.Result, "=")).Result)
-                        }
-                    )
-                ),
-
-                // Generate JSON structure
-                jsonResult: "{""" & variableName & """: {" & Concat(
-                    keyValuePairs,
-                    If(
-                        !IsBlank(ThisRecord.key),
-                        """ & ThisRecord.key & """: """ & ThisRecord.value & """",
-                        ""
-                    ),
-                    ","
-                ) & "}}"
-            },
-            // Output the JSON result
-            jsonResult
-        )
+        // Construct JSON result
+        "{""" & variableName & """: {" & Concat(
+            keyValuePairs,
+            """ & ThisRecord.key & """: """ & ThisRecord.value & """",
+            ","
+        ) & "}}"
     )
 )
