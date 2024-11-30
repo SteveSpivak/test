@@ -11,45 +11,42 @@ With(
     },
     With(
         {
-            // Step 3: Parse each variable block
+            // Step 3: Parse each variable block directly in ForAll
             parsedVariables: ForAll(
                 variableBlocks,
                 With(
                     {
-                        // Step 4: Current variable block
-                        variableText: Trim(ThisRecord.Value),
-
-                        // Step 5: Extract variable name
+                        // Step 4: Extract variable name
                         variableName: Mid(
-                            variableText,
-                            Find("""", variableText) + 1,
-                            Find("""", variableText, Find("""", variableText) + 1) - Find("""", variableText) - 1
+                            ThisRecord.Value,
+                            Find("""", ThisRecord.Value) + 1,
+                            Find("""", ThisRecord.Value, Find("""", ThisRecord.Value) + 1) - Find("""", ThisRecord.Value) - 1
                         ),
 
-                        // Step 6: Extract content block
-                        contentStart: Find("{", variableText),
-                        contentEnd: Find("}", variableText, Find("{", variableText)),
+                        // Step 5: Extract content block
+                        contentStart: Find("{", ThisRecord.Value),
+                        contentEnd: Find("}", ThisRecord.Value, Find("{", ThisRecord.Value)),
                         contentBlock: Mid(
-                            variableText,
+                            ThisRecord.Value,
                             contentStart + 1,
                             contentEnd - contentStart - 1
                         ),
 
-                        // Step 7: Extract default value if present
-                        defaultStart: Find("default =", variableText),
+                        // Step 6: Extract default value if present
+                        defaultStart: Find("default =", ThisRecord.Value),
                         defaultValue: If(
                             defaultStart > 0,
                             Trim(
                                 Mid(
-                                    variableText,
+                                    ThisRecord.Value,
                                     defaultStart + 9,
-                                    Find("\n", variableText, defaultStart) - defaultStart - 9
+                                    Find("\n", ThisRecord.Value, defaultStart) - defaultStart - 9
                                 )
                             ),
                             "null"
                         ),
 
-                        // Step 8: Handle nested types recursively
+                        // Step 7: Handle nested types recursively
                         parsedType: If(
                             StartsWith(Trim(contentBlock), "map("),
                             "{""map"": """ & Mid(contentBlock, 5, Len(contentBlock) - 5) & """}",
@@ -64,7 +61,7 @@ With(
                             )
                         )
                     },
-                    // Step 9: Construct JSON object for the variable
+                    // Construct JSON object for the variable
                     "{""" & variableName & """: {" &
                         """type"": """ & parsedType & """, " &
                         """default"": """ & defaultValue & """" &
@@ -72,7 +69,7 @@ With(
                 )
             )
         },
-        // Step 10: Combine all variables into a single JSON object
+        // Combine all variables into a single JSON object
         "{" & Concat(parsedVariables, ThisRecord.Value & ", ") & "}"
     )
 )
