@@ -8,41 +8,49 @@ public class Script : ScriptBase
 {
     public override async Task<HttpResponseMessage> ExecuteAsync()
     {
-        // Check the operation ID
-        if (this.Context.OperationId == "ParseSingleVariable")
+        if (this.Context.OperationId != "ParseSingleVariable")
         {
-            return await this.ParseVariable().ConfigureAwait(false);
+            return new HttpResponseMessage(HttpStatusCode.BadRequest)
+            {
+                Content = CreateJsonContent($"Unknown operation ID '{this.Context.OperationId}'")
+            };
         }
 
-        // Handle invalid operation ID
-        HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.BadRequest);
-        response.Content = CreateJsonContent($"Unknown operation ID '{this.Context.OperationId}'");
-        return response;
-    }
-
-    private async Task<HttpResponseMessage> ParseVariable()
-    {
-        HttpResponseMessage response;
-
-        // Read the incoming content (Terraform variable text)
-        var contentAsString = await this.Context.Request.Content.ReadAsStringAsync().ConfigureAwait(false);
-
+        // Read and validate the JSON input
         try
         {
-            // Call the function to transform the variable block into JSON
-            string jsonOutput = ConvertVariableToJson(contentAsString);
+            var requestContent = await this.Context.Request.Content.ReadAsStringAsync().ConfigureAwait(false);
+            var jsonRequest = JObject.Parse(requestContent);
+            
+            if (!jsonRequest.ContainsKey("variableText"))
+            {
+                return new HttpResponseMessage(HttpStatusCode.BadRequest)
+                {
+                    Content = CreateJsonContent("Missing required 'variableText' field in request")
+                };
+            }
 
-            // Create a success response with the JSON output
-            response = new HttpResponseMessage(HttpStatusCode.OK);
-            response.Content = CreateJsonContent(jsonOutput);
-            return response;
+            string variableText = jsonRequest["variableText"].ToString();
+            string jsonOutput = ConvertVariableToJson(variableText);
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = CreateJsonContent(jsonOutput)
+            };
+        }
+        catch (JsonReaderException ex)
+        {
+            return new HttpResponseMessage(HttpStatusCode.BadRequest)
+            {
+                Content = CreateJsonContent($"Invalid JSON in request: {ex.Message}")
+            };
         }
         catch (Exception ex)
         {
-            // Handle errors
-            response = new HttpResponseMessage(HttpStatusCode.InternalServerError);
-            response.Content = CreateJsonContent($"Error: {ex.Message}");
-            return response;
+            return new HttpResponseMessage(HttpStatusCode.InternalServerError)
+            {
+                Content = CreateJsonContent($"Error processing request: {ex.Message}")
+            };
         }
     }
 
@@ -50,70 +58,90 @@ public class Script : ScriptBase
     {
         try
         {
-            // Clean up input and split the text into manageable parts
             variableText = variableText.Trim();
-
-            // Find the variable name using basic string operations
-            string variableName = ExtractBetween(variableText, "variable \"", "\" {");
-
-            // Find the content block within the variable definition
-            string contentBlock = ExtractBetween(variableText, "{", "}");
-
-            // Parse the content block into key-value pairs
-            var contentAsJson = new JObject();
-            string[] lines = contentBlock.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
-
-            foreach (var line in lines)
+            
+            // Enhanced variable name extraction with validation
+            string variableName = ExtractVariableName(variableText);
+            if (string.IsNullOrEmpty(variableName))
             {
-                // Skip comments or empty lines
-                if (line.Trim().StartsWith("#") || string.IsNullOrWhiteSpace(line))
-                    continue;
-
-                // Extract key-value pairs
-                string[] parts = line.Split('=');
-                if (parts.Length == 2)
-                {
-                    string key = parts[0].Trim();
-                    string value = parts[1].Trim();
-
-                    // Handle optional fields and their types
-                    if (value.StartsWith("optional("))
-                    {
-                        value = ExtractBetween(value, "optional(", ")");
-                    }
-                    else if (value.StartsWith("list(") || value.StartsWith("map(") || value.StartsWith("object("))
-                    {
-                        value = "complex type"; // Placeholder for complex types
-                    }
-
-                    // Add the key-value pair to the JSON object
-                    contentAsJson[key] = value;
-                }
+                throw new Exception("Could not extract variable name");
             }
 
-            // Wrap the variable name and content into a JSON structure
-            var result = new JObject
+            // Extract and parse the content block
+            string contentBlock = ExtractBetween(variableText, "{", "}");
+            var contentAsJson = ParseVariableContent(contentBlock);
+
+            return new JObject
             {
                 [variableName] = contentAsJson
-            };
-
-            return result.ToString(Newtonsoft.Json.Formatting.Indented); // Explicitly specifying Newtonsoft.Json.Formatting
+            }.ToString(Newtonsoft.Json.Formatting.Indented);
         }
         catch (Exception ex)
         {
-            throw new Exception($"Error while parsing variable: {ex.Message}");
+            throw new Exception($"Error parsing Terraform variable: {ex.Message}");
         }
+    }
+
+    private string ExtractVariableName(string text)
+    {
+        var match = System.Text.RegularExpressions.Regex.Match(
+            text,
+            @"variable\s+""([^""]+)""");
+        
+        return match.Success ? match.Groups[1].Value : string.Empty;
+    }
+
+    private JObject ParseVariableContent(string content)
+    {
+        var result = new JObject();
+        var lines = content.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(l => l.Trim())
+            .Where(l => !string.IsNullOrEmpty(l) && !l.StartsWith("#"));
+
+        foreach (var line in lines)
+        {
+            var parts = line.Split(new[] { '=' }, 2);
+            if (parts.Length != 2) continue;
+
+            string key = parts[0].Trim();
+            string value = parts[1].Trim();
+
+            // Handle special types
+            if (value.StartsWith("optional("))
+            {
+                value = ExtractBetween(value, "optional(", ")");
+            }
+            else if (value.StartsWith("list(") || 
+                     value.StartsWith("map(") || 
+                     value.StartsWith("object("))
+            {
+                value = "complex_type";
+            }
+
+            result[key] = value;
+        }
+
+        return result;
     }
 
     private string ExtractBetween(string text, string start, string end)
     {
-        int startIndex = text.IndexOf(start) + start.Length;
+        int startIndex = text.IndexOf(start);
+        if (startIndex == -1) return string.Empty;
+        
+        startIndex += start.Length;
         int endIndex = text.IndexOf(end, startIndex);
+        if (endIndex == -1) return string.Empty;
+        
         return text.Substring(startIndex, endIndex - startIndex).Trim();
     }
 
     private HttpContent CreateJsonContent(string content)
     {
-        return new StringContent(content, System.Text.Encoding.UTF8, "application/json");
+        return new StringContent(
+            content,
+            System.Text.Encoding.UTF8,
+            "application/json"
+        );
     }
 }
