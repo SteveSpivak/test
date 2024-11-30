@@ -1,0 +1,552 @@
+# Updated ON: 01.10.24
+# Updated BY: Eduard Gurman
+# ---------------- Base Name -------------------- #
+## Need to check limits on the frontend - VM limits 15 characters
+variable "base_name" {
+  type = string
+}
+variable "enviroment_short_name" {
+  type = string
+  validation {
+    condition     = contains(["dev", "stag", "prod", "poc", ""], var.enviroment_short_name)
+    error_message = "Valid values for var: enviroment_short_name are (dev, stag, prod, poc)."
+  }
+}
+# --------------------------------------------------------- #
+# ---------------- Location -------------------- #
+## Should be set by the selected subscription\RG in the frontend
+variable "location" {
+  type        = string
+  description = "Region where in which the resources will be deployed"
+}
+# --------------------------------------------------------- #
+# ---------------- Resource Groups -------------------- #
+variable "deployment_resource_group_name" {
+  type        = string
+  description = "Name of the resource group where the resources will be deployed - needed if RG is not created in the same deployment"
+  default     = null
+  nullable    = true
+}
+# --------------------------------------------------------- #
+
+# ---------------- Providers Subscriptions -------------------- #
+variable "deployment_subscription_id" {
+  type        = string
+  description = "Subscription ID in which the resources will be deployed"
+  #Used in main for provider
+}
+variable "management_subscription_id" {
+  type        = string
+  default     = "5f106ae9-0794-4702-a5ee-cbed11a70019"
+  description = "Subscription ID in which the KeyVaults are located"
+  #Used in main for provider
+}
+variable "monitoring_subscription_id" {
+  type        = string
+  default     = "1a101401-e138-41f3-9784-28164684d577"
+  description = "Subscription ID in which the Log Analytics are located"
+  #Used in main for provider
+}
+# --------------------------------------------------------- #
+# ---------------- Modules -------------------- #
+variable "RG" {
+  type = object({
+    tags                               = map(string)
+    group_names_permission_reader      = optional(list(string), [])
+    group_names_permission_contributor = optional(list(string), [])
+    bypass_resource_group_name         = optional(string, null)
+  })
+
+  default = null
+
+  nullable = true
+}
+# --------------------------------------------------------- #
+
+variable "Storage_Account" {
+  type = map(object({
+    make_public                                   = optional(bool, null)
+    allowed_snets_ids                             = optional(list(string), null)
+    allowed_ips                                   = optional(list(string), null)
+    create_blob_pl                                = optional(bool, null)
+    create_file_pl                                = optional(bool, null)
+    create_table_pl                               = optional(bool, null)
+    create_queue_pl                               = optional(bool, null)
+    tags                                          = optional(map(string), null)
+    endpoint_resource_id                          = optional(list(string), null)
+    enable_backup                                 = optional(bool, null)
+    group_names_permission_blob_data_reader       = optional(list(string), null)
+    group_names_permission_blob_data_contributor  = optional(list(string), null)
+    group_names_permission_file_data_reader       = optional(list(string), null)
+    group_names_permission_file_data_contributor  = optional(list(string), null)
+    group_names_permission_table_data_reader      = optional(list(string), null)
+    group_names_permission_table_data_contributor = optional(list(string), null)
+    group_names_permission_queue_data_reader      = optional(list(string), null)
+    group_names_permission_queue_data_contributor = optional(list(string), null)
+    spn_names_permission_blob_data_reader         = optional(list(string), null)
+    spn_names_permission_blob_data_contributor    = optional(list(string), null)
+    sftp_enabled                                  = optional(bool, null)
+    cross_tenant_replication_enabled              = optional(bool, null)
+    create_containers = optional(map(object({
+      name                  = string
+      container_access_type = string
+    })), null)
+    blob_properties = optional(object({
+      cors_rule = optional(object({
+        allowed_headers    = optional(list(string), null)
+        allowed_methods    = optional(list(string), null)
+        allowed_origins    = optional(list(string), null)
+        exposed_headers    = optional(list(string), null)
+        max_age_in_seconds = optional(number, null)
+      }), null)
+      delete_retention_policy = optional(object({
+        days                     = optional(number, null)
+        permanent_delete_enabled = optional(bool, null)
+      }), null)
+      restore_policy = optional(object({
+        days = optional(number, null)
+      }), null)
+      versioning_enabled            = optional(bool, null)
+      change_feed_enabled           = optional(bool, null)
+      change_feed_retention_in_days = optional(number, null)
+      default_service_version       = optional(string, null)
+      last_access_time_enabled      = optional(bool, null)
+      container_delete_retention_policy = optional(object({
+        days = optional(number, null)
+      }), null)
+    }), null)
+    bypass_storage_account_name                                     = optional(string, null)
+    bypass_storage_account_account_kind                             = optional(string, null)
+    bypass_storage_account_account_tier                             = optional(string, null)
+    bypass_storage_account_account_replication_type                 = optional(string, null)
+    bypass_storage_account_min_tls_version                          = optional(string, null)
+    bypass_storage_account_is_hns_enabled                           = optional(bool, null)
+    bypass_storage_account_public_network_access_enabled            = optional(bool, null)
+    bypass_storage_account_allow_nested_items_to_be_public          = optional(bool, null)
+    bypass_storage_account_cross_tenant_replication_enabled         = optional(bool, null)
+    bypass_storage_account_network_rules_default_action             = optional(string, null)
+    bypass_storage_account_network_rules_virtual_network_subnet_ids = optional(list(string), null)
+    bypass_storage_account_network_rules_ip_rules                   = optional(list(string), null)
+    bypass_blob_private_endpoint_name                               = optional(string, null)
+    bypass_blob_private_service_connection_name                     = optional(string, null)
+    bypass_file_private_endpoint_name                               = optional(string, null)
+    bypass_file_private_service_connection_name                     = optional(string, null)
+    bypass_queue_private_endpoint_name                              = optional(string, null)
+    bypass_queue_private_service_connection_name                    = optional(string, null)
+    bypass_table_private_endpoint_name                              = optional(string, null)
+    bypass_table_private_service_connection_name                    = optional(string, null)
+    bypass_storage_account_location                                 = optional(string, null)
+    bypass_storage_account_access_tier                              = optional(string, null)
+
+  }))
+
+  default = {}
+}
+# --------------------------------------------------------- #
+
+variable "VM_Win" {
+  type = map(object({
+    vm_size                        = string
+    join_domain                    = bool
+    virtual_machine_trusted_launch = bool
+    vulnerability_assessment       = bool
+    tags                           = map(string)
+    accelerated_networking_enabled = optional(bool, false)
+    ado_agent = optional(object({
+      ado_url   = string
+      ado_pat   = string
+      ado_pool  = string
+      ado_agent = string
+    }))
+    additional_disks_sizes                                           = optional(list(number), [])
+    zone                                                             = optional(number, null)
+    bypass_domain_name                                               = optional(string, null)
+    bypass_join_domain_ou_path                                       = optional(string, null)
+    bypass_join_domain_bypass_user                                   = optional(string, null)
+    bypass_join_domain_bypass_password                               = optional(string, null)
+    bypass_windows_virtual_machine_name                              = optional(string, null)
+    bypass_windows_virtual_machine_network_interface_ids             = optional(list(string), null)
+    bypass_windows_virtual_machine_computer_name                     = optional(string, null)
+    bypass_windows_virtual_machine_admin_username                    = optional(string, null)
+    bypass_windows_virtual_machine_admin_password                    = optional(string, null)
+    bypass_windows_virtual_machine_size                              = optional(string, null)
+    bypass_windows_virtual_machine_enable_automatic_updates          = optional(bool, null)
+    bypass_windows_virtual_machine_license_type                      = optional(string, null)
+    bypass_windows_virtual_machine_vtpm_enabled                      = optional(bool, null)
+    bypass_windows_virtual_machine_secure_boot_enabled               = optional(bool, null)
+    bypass_windows_virtual_machine_source_image_reference_offer      = optional(string, null)
+    bypass_windows_virtual_machine_source_image_reference_publisher  = optional(string, null)
+    bypass_windows_virtual_machine_source_image_reference_sku        = optional(string, null)
+    bypass_windows_virtual_machine_source_image_reference_version    = optional(string, null)
+    bypass_windows_virtual_machine_os_disk_caching                   = optional(string, null)
+    bypass_windows_virtual_machine_os_disk_disk_size_gb              = optional(number, null)
+    bypass_windows_virtual_machine_os_disk_name                      = optional(string, null)
+    bypass_windows_virtual_machine_os_disk_write_accelerator_enabled = optional(bool, null)
+    bypass_windows_virtual_machine_os_disk_storage_account_type      = optional(string, null)
+    bypass_network_interface_name                                    = optional(string, null)
+    bypass_network_interface_ip_configuration_name                   = optional(string, null)
+    bypass_network_interface_subnet_id                               = optional(string, null)
+    bypass_network_interface_primary                                 = optional(bool, null)
+    bypass_network_interface_private_ip_address_allocation           = optional(string, null)
+    bypass_additional_disks_name                                     = optional(list(string), [])
+    bypass_additional_disks_storage_account_type                     = optional(list(string), [])
+    bypass_additional_disks_create_option                            = optional(list(string), [])
+    bypass_additional_disks_sizes                                    = optional(list(number), [])
+    bypass_additional_disks_lun                                      = optional(list(number), [])
+  }))
+
+  default = {}
+}
+# --------------------------------------------------------- #
+variable "VM_Lin" {
+  type = map(object({
+    vm_size                                                                             = string
+    virtual_machine_trusted_launch                                                      = bool
+    vulnerability_assessment                                                            = bool
+    tags                                                                                = map(string)
+    accelerated_networking_enabled                                                      = optional(bool, false)
+    additional_disks_sizes                                                              = optional(list(number), [])
+    zone                                                                                = optional(number, null)
+    bypass_linux_virtual_machine_name                                                   = optional(string, null)
+    bypass_linux_virtual_machine_network_interface_ids                                  = optional(list(string), null)
+    bypass_linux_virtual_machine_computer_name                                          = optional(string, null)
+    bypass_linux_virtual_machine_admin_username                                         = optional(string, null)
+    bypass_linux_virtual_machine_size                                                   = optional(string, null)
+    bypass_linux_virtual_machine_enable_automatic_updates                               = optional(bool, null)
+    bypass_linux_virtual_machine_license_type                                           = optional(string, null)
+    bypass_linux_virtual_machine_vtpm_enabled                                           = optional(bool, null)
+    bypass_linux_virtual_machine_secure_boot_enabled                                    = optional(bool, null)
+    bypass_linux_virtual_machine_source_image_reference_offer                           = optional(string, null)
+    bypass_linux_virtual_machine_source_image_reference_publisher                       = optional(string, null)
+    bypass_linux_virtual_machine_source_image_reference_sku                             = optional(string, null)
+    bypass_linux_virtual_machine_source_image_reference_version                         = optional(string, null)
+    bypass_linux_virtual_machine_os_disk_caching                                        = optional(string, null)
+    bypass_linux_virtual_machine_os_disk_disk_size_gb                                   = optional(number, null)
+    bypass_linux_virtual_machine_os_disk_name                                           = optional(string, null)
+    bypass_linux_virtual_machine_os_disk_write_accelerator_enabled                      = optional(bool, null)
+    bypass_linux_virtual_machine_os_disk_storage_account_type                           = optional(string, null)
+    bypass_linux_virtual_machine_source_image_id                                        = optional(string, null)
+    bypass_linux_virtual_machine_bypass_platform_safety_checks_on_user_schedule_enabled = optional(bool, null)
+    bypass_linux_virtual_machine_disable_password_authentication                        = optional(bool, null)
+    bypass_linux_virtual_machine_patch_mode                                             = optional(string, null)
+    bypass_resource_group_name                                                          = optional(string, null)
+    bypass_network_interface_name                                                       = optional(string, null)
+    bypass_network_interface_ip_configuration_name                                      = optional(string, null)
+    bypass_network_interface_subnet_id                                                  = optional(string, null)
+    bypass_network_interface_primary                                                    = optional(bool, null)
+    bypass_network_interface_private_ip_address_allocation                              = optional(string, null)
+    bypass_additional_disks_name                                                        = optional(list(string), [])
+    bypass_additional_disks_storage_account_type                                        = optional(list(string), [])
+    bypass_additional_disks_create_option                                               = optional(list(string), [])
+    bypass_additional_disks_sizes                                                       = optional(list(number), [])
+    bypass_additional_disks_lun                                                         = optional(list(number), [])
+  }))
+
+  default = {}
+}
+# --------------------------------------------------------- #
+
+variable "Key_Vault" {
+  type = map(object({
+    allowed_snets_ids                            = optional(list(string), [])
+    allowed_ips                                  = optional(list(string), [])
+    tags                                         = optional(map(string), {})
+    group_names_permission_key_vault_secret_user = optional(list(string), [])
+    make_public                                  = optional(string, false)
+    bypass_key_vault_name                        = optional(string, null)
+    bypass_enable_rbac_authorization             = optional(bool, null)
+    bypass_enabled_for_disk_encryption           = optional(bool, null)
+    bypass_soft_delete_retention_days            = optional(number, null)
+    bypass_enabled_for_deployment                = optional(bool, null)
+    bypass_enabled_for_template_deployment       = optional(bool, null)
+  }))
+  default = {}
+}
+# --------------------------------------------------------- #
+variable "SQL_MI" {
+  type = map(object({
+    sql_admin_ad_group_name   = string
+    sql_mi_user_name_windows  = optional(string, null)
+    sql_mi_pass_windows       = optional(string, null)
+    skip_role_assignment      = optional(bool, false)
+    sql_mi_sku_name           = optional(string, null)
+    sql_mi_storage_size_in_gb = optional(number, null)
+    sql_mi_vcores             = optional(number, null)
+
+    sql_vm = map(object({
+      vm_size                                                          = string
+      additional_disks_sizes                                           = optional(list(number), [])
+      tags                                                             = map(string)
+      vulnerability_assessment                                         = bool
+      virtual_machine_trusted_launch                                   = optional(bool, null)
+      bypass_domain_name                                               = optional(string, null)
+      bypass_join_domain_ou_path                                       = optional(string, null)
+      bypass_join_domain_bypass_user                                   = optional(string, null)
+      bypass_join_domain_bypass_password                               = optional(string, null)
+      bypass_windows_virtual_machine_name                              = optional(string, null)
+      bypass_windows_virtual_machine_network_interface_ids             = optional(list(string), null)
+      bypass_windows_virtual_machine_computer_name                     = optional(string, null)
+      bypass_windows_virtual_machine_admin_username                    = optional(string, null)
+      bypass_windows_virtual_machine_admin_password                    = optional(string, null)
+      bypass_windows_virtual_machine_size                              = optional(string, null)
+      bypass_windows_virtual_machine_enable_automatic_updates          = optional(bool, null)
+      bypass_windows_virtual_machine_license_type                      = optional(string, null)
+      bypass_windows_virtual_machine_vtpm_enabled                      = optional(bool, null)
+      bypass_windows_virtual_machine_secure_boot_enabled               = optional(bool, null)
+      bypass_windows_virtual_machine_source_image_reference_offer      = optional(string, null)
+      bypass_windows_virtual_machine_source_image_reference_publisher  = optional(string, null)
+      bypass_windows_virtual_machine_source_image_reference_sku        = optional(string, null)
+      bypass_windows_virtual_machine_source_image_reference_version    = optional(string, null)
+      bypass_windows_virtual_machine_os_disk_caching                   = optional(string, null)
+      bypass_windows_virtual_machine_os_disk_disk_size_gb              = optional(number, null)
+      bypass_windows_virtual_machine_os_disk_name                      = optional(string, null)
+      bypass_windows_virtual_machine_os_disk_write_accelerator_enabled = optional(bool, null)
+      bypass_windows_virtual_machine_os_disk_storage_account_type      = optional(string, null)
+      bypass_network_interface_name                                    = optional(string, null)
+      bypass_network_interface_ip_configuration_name                   = optional(string, null)
+      bypass_network_interface_subnet_id                               = optional(string, null)
+      bypass_network_interface_primary                                 = optional(bool, null)
+      bypass_network_interface_private_ip_address_allocation           = optional(string, null)
+      bypass_additional_disks_name                                     = optional(list(string), null)
+      bypass_additional_disks_storage_account_type                     = optional(list(string), null)
+      bypass_additional_disks_create_option                            = optional(list(string), null)
+      bypass_additional_disks_sizes                                    = optional(list(number), null)
+    }))
+
+    bypass_mssql_managed_instance_name     = optional(string, null)
+    bypass_private_endpoint_name           = optional(string, null)
+    bypass_private_service_connection_name = optional(string, null)
+    bypass_sql_mi_license_type             = optional(string, null)
+    bypass_sql_mi_storage_account_type     = optional(string, null)
+    bypass_sql_mi_timezone_id              = optional(string, null)
+    bypass_sql_mi_collation                = optional(string, null)
+    bypass_sql_mi_proxy_override           = optional(string, null)
+  }))
+  default = {}
+}
+# --------------------------------------------------------- #
+variable "Cognitive_Account" {
+  type = map(object({
+    cognitive_account_kind                  = string
+    cognitive_account_sku_name              = string
+    cognitive_account_custom_subdomain_name = string
+    make_public                             = optional(bool, false)
+    cognitive_account_ip_rules              = optional(list(string), [])
+    cognitive_account_allowed_snets = optional(map(object({
+      subnet_id                            = string
+      ignore_missing_vnet_service_endpoint = bool
+    })), {})
+    group_names_permission_cognitive_services_contributor        = optional(list(string), [])
+    group_names_permission_cognitive_services_openai_contributor = optional(list(string), [])
+    group_names_permission_cognitive_services_openai_user        = optional(list(string), [])
+    group_names_permission_cognitive_services_usages_reader      = optional(list(string), [])
+    group_names_permission_cognitive_services_user               = optional(list(string), [])
+    spn_permission_cognitive_services_contributor                = optional(list(string), [])
+    spn_permission_cognitive_services_openai_contributor         = optional(list(string), [])
+    spn_permission_cognitive_services_openai_user                = optional(list(string), [])
+    spn_permission_cognitive_services_usages_reader              = optional(list(string), [])
+    spn_permission_cognitive_services_user                       = optional(list(string), [])
+
+    bypass_cognitive_account_name                           = optional(string, null)
+    bypass_cognitive_account_location                       = optional(string, null)
+    bypass_private_endpoint_name                            = optional(string, null)
+    bypass_private_endpoint_custom_network_interface_name   = optional(string, null)
+    bypass_private_endpoint_private_service_connection_name = optional(string, null)
+  }))
+  default = {}
+}
+# --------------------------------------------------------- #
+variable "Automation_Account" {
+  type = map(object({
+    public_network_access_enabled = optional(bool)
+    sku_name                      = optional(string)
+    hybrid_worker_vms = optional(map(object({
+      vm_size                                                   = string
+      additional_disks_sizes                                    = optional(list(number), null)
+      join_domain                                               = optional(bool, true)
+      virtual_machine_trusted_launch                            = optional(bool, true)
+      vulnerability_assessment                                  = optional(bool, true)
+      tags                                                      = map(string)
+      bypass_network_interface_name                             = optional(string, null)
+      bypass_windows_virtual_machine_computer_name              = optional(string, null)
+      bypass_windows_virtual_machine_name                       = optional(string, null)
+      bypass_windows_virtual_machine_os_disk_name               = optional(string, null)
+      bypass_windows_virtual_machine_source_image_reference_sku = optional(string, null)
+      bypass_network_interface_ip_configuration_name            = optional(string, null)
+      bypass_network_interface_private_ip_address_allocation    = optional(string, null)
+    })), null)
+    source_control = optional(object({
+      folder_path         = string
+      token               = string
+      token_type          = string
+      repository_url      = string
+      source_control_type = string
+      branch_name         = string
+    }), null)
+    bypass_management_key_vault_name                        = optional(string, null)
+    bypass_hybrid_worker_user                               = optional(string, null)
+    bypass_hybrid_worker_password                           = optional(string, null)
+    bypass_automation_account_name                          = optional(string, null)
+    bypass_private_endpoint_name                            = optional(string, null)
+    bypass_private_endpoint_custom_network_interface_name   = optional(string, null)
+    bypass_private_endpoint_private_service_connection_name = optional(string, null)
+    bypass_hybrid_runbook_worker_group_name                 = optional(string, null)
+    bypass_hybrid_runbook_worker_name                       = optional(string, null)
+  }))
+  default = {}
+}
+# --------------------------------------------------------- #
+variable "Azure_SQL_Server" {
+  type = map(object({
+    sql_admin_ad_group_name = string
+    is_production           = bool
+    tags                    = map(string)
+    databases = optional(map(object({
+      name                 = string
+      database_max_size_gb = number
+      database_sku_name    = string
+      tags                 = map(string)
+      geo_backup_enabled   = bool
+    })), null)
+    firewall_rules = list(string)
+
+    bypass_mssql_server_name                                = optional(string, null)
+    bypass_mssql_server_public_network_access_enabled       = optional(bool, null)
+    bypass_private_endpoint_name                            = optional(string, null)
+    bypass_private_endpoint_custom_network_interface_name   = optional(string, null)
+    bypass_private_endpoint_private_service_connection_name = optional(string, null)
+    bypass_database_name                                    = optional(map(string), null)
+    bypass_database_collation                               = optional(map(string), null)
+    bypass_database_license_type                            = optional(map(string), null)
+    bypass_data_base_storage_account_type                   = optional(map(string), null)
+    bypass_storage_account_name                             = optional(string, null)
+    bypass_storage_account_container_name                   = optional(string, null)
+    bypass_storage_account_is_hns_enabled                   = optional(bool, null)
+    bypass_storage_account_allow_nested_items_to_be_public  = optional(bool, null)
+    bypass_storage_account_allowed_snets_ids                = optional(list(string), null)
+    bypass_storage_account_allowed_ips                      = optional(list(string), null)
+
+  }))
+
+  default = {}
+}
+# --------------------------------------------------------- #
+variable "App_Service_Plan" {
+  default = {}
+
+  type = map(object({
+    service_plan = object({
+      os_type                      = string
+      sku_name                     = string
+      worker_count                 = optional(number, null)
+      maximum_elastic_worker_count = optional(number, null)
+      zone_balancing_enabled       = optional(bool, null)
+      log_analytics_workspace_id   = optional(string, null)
+    })
+    linux_web_app = optional(map(object({
+      name                          = string
+      always_on                     = optional(bool, true)
+      https_only                    = optional(bool, true)
+      public_network_access_enabled = optional(bool, false)
+      site_config = object({
+        ip_restriction_default_action     = optional(string, null)
+        scm_ip_restriction_default_action = optional(string, null)
+        app_command_line                  = optional(string, null)
+        ftps_state                        = optional(string, "FtpsOnly")
+        application_stack = object({
+          dotnet_version      = optional(string, null)
+          go_version          = optional(string, null)
+          java_server         = optional(string, null)
+          java_server_version = optional(string, null)
+          java_version        = optional(string, null)
+          node_version        = optional(string, null)
+          php_version         = optional(string, null)
+          python_version      = optional(string, null)
+          ruby_version        = optional(string, null)
+        })
+        ip_restriction = optional(map(object({
+          action = optional(string, null)
+          headers = optional(list(object({
+            x_azure_fdid      = optional(list(string), null)
+            x_fd_health_probe = optional(list(string), null)
+            x_forwarded_for   = optional(list(string), null)
+            x_forwarded_host  = optional(list(string), null)
+          })), null)
+          ip_address                = optional(string, null)
+          name                      = optional(string, null)
+          priority                  = optional(number, null)
+          service_tag               = optional(string, null)
+          virtual_network_subnet_id = optional(string, null)
+          description               = optional(string, null)
+        })), null)
+      })
+      logs = optional(object({
+        log_analytics_id   = optional(string, null)
+        storage_account_id = optional(string, null)
+        file_system = optional(object({
+          detailed_error_messages = bool
+          failed_request_tracing  = bool
+          retention_in_days       = number
+          retention_in_mb         = number
+        }), null)
+      }), null)
+      use_log_analytics = bool
+      application_insights = optional(object({
+        name                = string
+        resource_group_name = string
+      }), null)
+      create_slot = optional(bool, false)
+    })), null)
+    tags                                                                       = map(string)
+    bypass_service_plan_name                                                   = optional(string, null)
+    bypass_linux_web_app_name                                                  = optional(map(string), null)
+    bypass_linux_web_app_private_endpoint_name                                 = optional(map(string), null)
+    bypass_linux_web_app_private_endpoint_private_service_connection_name      = optional(map(string), null)
+    bypass_linux_web_app_slot_name                                             = optional(map(string), null)
+    bypass_linux_web_app_slot_private_endpoint_name                            = optional(map(string), null)
+    bypass_linux_web_app_slot_private_endpoint_private_service_connection_name = optional(map(string), null)
+    bypass_linux_web_app_diagnostic_setting_name                               = optional(map(string), null)
+    bypass_service_plan_disable_diagnostinc_settings                           = optional(bool, null)
+    bypass_linux_web_app_diagnostinc_settings_name                             = optional(map(string), null)
+  }))
+}
+# --------------------------------------------------------- #
+variable "Dev_Center" {
+
+  type = map(object({
+    dev_box_project = map(object({
+      name                       = string
+      project_subnet_id          = string
+      maximum_dev_boxes_per_user = optional(number, null)
+      definitions = map(object({
+        name                    = string
+        sku_name                = optional(string, null)
+        image_reference_id_name = string
+        shared_gallery_name     = string
+      }))
+    }))
+    tags                                      = map(string)
+    bypass_dev_center_name                    = optional(string, null)
+    bypass_dev_center_network_connection_name = optional(map(string), null)
+    bypass_dev_center_dev_box_definition_name = optional(map(string), null)
+    bypass_dev_center_dev_box_project_name    = optional(map(string), null)
+    bypass_dev_center_user_assigned_name      = optional(string, null)
+  }))
+
+  default = {}
+
+}
+# --------------------------------------------------------- #
+# --------------------------------------------------------- #
+# --------------------------------------------------------- #
+# --------------------------------------------------------- #
+# --------------------------------------------------------- #
+# --------------------------------------------------------- #
+# --------------------------------------------------------- #
+# --------------------------------------------------------- #
+# --------------------------------------------------------- #
+# --------------------------------------------------------- #
+# --------------------------------------------------------- #
+# --------------------------------------------------------- #
+# --------------------------------------------------------- #
+# --------------------------------------------------------- #
