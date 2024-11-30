@@ -97,7 +97,7 @@ public class Script : ScriptBase
                 [variableName] = contentAsJson
             };
 
-            return result.ToString(Newtonsoft.Json.Formatting.Indented);
+            return result.ToString(Newtonsoft.Json.Formatting.Indented); // Explicitly specifying Newtonsoft.Json.Formatting
         }
         catch (Exception ex)
         {
