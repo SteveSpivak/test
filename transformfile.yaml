@@ -1,60 +1,75 @@
 With(
     {
-        terraformFile: "<INSERT FULL TERRAFORM TEXT HERE>",
+        terraformFile: "<INSERT TERRAFORM FILE TEXT>",
 
-        // Step 1: Split into Blocks by "variable"
-        variableBlocks: Split(terraformFile, "variable"),
+        // Step 1: Split into variable blocks
+        variableBlocks: Filter(
+            Split(terraformFile, "variable"),
+            Len(ThisRecord) > 0 // Exclude empty strings
+        ),
 
-        // Step 2: Parse Each Block
+        // Step 2: Parse Each Variable Block
         parsedVariables: ForAll(
-            Drop(variableBlocks, 1), // Skip the first empty block
+            variableBlocks,
             With(
                 {
-                    variableText: ThisRecord.Result,
+                    variableText: ThisRecord,
 
                     // Extract Variable Name
                     variableName: Mid(
                         variableText,
-                        Find("\"", variableText) + 1,
-                        Find("\"", Mid(variableText, Find("\"", variableText) + 1)) - 1
+                        Find("""", variableText) + 1,
+                        Find("""", Mid(variableText, Find("""", variableText) + 1)) - 1
                     ),
 
                     // Extract Content Block
+                    contentBlockStart: Find("{", variableText),
+                    contentBlockEnd: Find("}", variableText, contentBlockStart),
                     contentBlock: Mid(
                         variableText,
-                        Find("{", variableText) + 1,
-                        Find("}", variableText) - Find("{", variableText) - 1
+                        contentBlockStart + 1,
+                        contentBlockEnd - contentBlockStart - 1
                     ),
 
                     // Extract Default Value if Present
-                    defaultBlock: If(
-                        Find("default", variableText) > 0,
+                    defaultStart: Find("default =", variableText),
+                    defaultValue: If(
+                        defaultStart > 0,
                         Mid(
                             variableText,
-                            Find("default =", variableText) + 8,
-                            Find("\n", Mid(variableText, Find("default =", variableText) + 8)) - 1
+                            defaultStart + 9,
+                            Find("\n", variableText, defaultStart) - (defaultStart + 9)
                         ),
                         Blank()
                     ),
 
-                    // Recursive Function to Parse Nested Types
+                    // Recursive Parsing Logic for Nested Types
                     parseType: If(
-                        Find("map", contentBlock) > 0,
-                        "{map: " & Text(parseType(Mid(contentBlock, Find("(", contentBlock) + 1, Find(")", contentBlock) - 1))) & "}",
+                        StartsWith(Trim(contentBlock), "map("),
+                        "{ ""map"": """ & Trim(Mid(contentBlock, 5, Len(contentBlock) - 5)) & """ }",
                         If(
-                            Find("list", contentBlock) > 0,
-                            "{list: " & Text(parseType(Mid(contentBlock, Find("(", contentBlock) + 1, Find(")", contentBlock) - 1))) & "}",
-                            contentBlock
+                            StartsWith(Trim(contentBlock), "list("),
+                            "{ ""list"": """ & Trim(Mid(contentBlock, 6, Len(contentBlock) - 6)) & """ }",
+                            If(
+                                StartsWith(Trim(contentBlock), "object("),
+                                "{ ""object"": """ & Trim(Mid(contentBlock, 8, Len(contentBlock) - 8)) & """ }",
+                                contentBlock
+                            )
                         )
                     )
                 },
-                // Step 3: Build JSON Object for Each Variable
-                "{""" & variableName & """: {" & 
+                // Construct JSON Object for the Variable
+                "{""" & variableName & """: {" &
                     """type"": """ & parseType & """, " &
-                    """default"": """ & defaultBlock & """}}"
+                    If(
+                        !IsBlank(defaultValue),
+                        """default"": """ & defaultValue & """",
+                        """default"": null"""
+                    ) &
+                "}}"
             )
         )
     },
-    // Step 4: Combine All Variables into a Single JSON
-    "{" & Concat(parsedVariables, ThisRecord.Result, ", ") & "}"
+    // Step 3: Combine All Variables into a Single JSON Object
+    "{" & Concat(parsedVariables, ThisRecord & ", ") & "}"
 )
