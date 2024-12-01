@@ -1,0 +1,31 @@
+ClearCollect(
+    colMandatoryTags,
+    [
+        { tagName: "ManagedBy", tagType: "String", defaultValue: "Terraform" },
+        { tagName: "BusinessCriticality", tagType: "Choice", options: ["General", "Mission Critical"] },
+        { tagName: "BusinessUnit", tagType: "Choice", options: ["Strauss Group", "Strauss Israel", "Strauss Coffee", "Strauss Water", "Sabra"] },
+        { tagName: "OpsTeam", tagType: "Choice", options: ["CCOE", "SecOps", "Digital", "Data Visualization", "Data Lab", "IOT", "Security"] },
+        { tagName: "Environment", tagType: "Choice", options: ["Development", "Test", "Stage", "Production", "Sandbox"] },
+        { tagName: "WorkloadName", tagType: "String" },
+        { tagName: "ProjectName", tagType: "String" }
+    ]
+);
+
+
+Gallery1.Items: colRgFields;
+Gallery2.Items: colMandatoryTags;
+
+
+ClearCollect(
+    colVmTags,
+    [
+        { tagName: "Description", tagType: "String" },
+        { tagName: "Application Pool", tagType: "String" },
+        { tagName: "Requester Name", tagType: "UPN" },
+        { tagName: "Environment", tagType: "Choice", options: ["Prod", "Non-Prod", "Development", "Test", "Stage", "Production", "Sandbox"] },
+        { tagName: "Domain Join", tagType: "Choice", options: ["Yes", "No"] },
+        { tagName: "Days", tagType: "String" },
+        { tagName: "StartTime", tagType: "String" },
+        { tagName: "ShutDownTime", tagType: "String" }
+    ]
+);
