@@ -1,0 +1,60 @@
+ClearCollect(
+    colDashboardData,
+    // Fetch Resources
+    ForAll(
+        Filter(Resources, Status <> "Archived"),
+        {
+            id: GUID(),
+            title: ResourceName,
+            description: "Manage " & ResourceType & " resources",
+            icon: If(
+                ResourceType = "VM",
+                "Server",
+                If(ResourceType = "Storage", "Database", "Settings")
+            ),
+            bgColor: If(
+                Status = "Active",
+                "green",
+                If(Status = "Pending", "orange", "gray")
+            ),
+            action: "View",
+            actionTitle: "Manage " & ResourceType,
+            actionColor: "blue"
+        }
+    ),
+    // Fetch Deployment Requests
+    ForAll(
+        Filter(Requests, Status <> "Failed"),
+        {
+            id: GUID(),
+            title: RequestName,
+            description: "Request submitted on " & Text(CreatedDate, "[$-en-US]dd-mm-yyyy"),
+            icon: "Activity",
+            bgColor: If(
+                Status = "Pending",
+                "orange",
+                If(Status = "Completed", "green", "red")
+            ),
+            action: "View",
+            actionTitle: "View Request Details",
+            actionColor: If(Status = "Pending", "orange", "green")
+        }
+    ),
+    // Fetch Tags and Metadata
+    ForAll(
+        Distinct(
+            Filter(Tags, RelatedResource <> Blank()),
+            TagName
+        ),
+        {
+            id: GUID(),
+            title: "Filter by " & TagName,
+            description: "Filter resources by " & TagName,
+            icon: "Filter",
+            bgColor: "teal",
+            action: "Filter",
+            actionTitle: "Apply Filter",
+            actionColor: "blue"
+        }
+    )
+)
