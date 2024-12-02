@@ -10,62 +10,88 @@ With(
         variableBlocks,
         With(
             {
-                // Step 2: Extract Variable Name
+                // Extract Variable Name
                 variableName: Text(
-                    Mid(ThisRecord.Value, 
+                    Mid(
+                        ThisRecord.Value,
                         Find("""", ThisRecord.Value) + 1,
                         Find("""", Mid(ThisRecord.Value, Find("""", ThisRecord.Value) + 1)) - 1
                     )
                 ),
                 
-                // Step 3: Extract Type
-                typeRow: First(Filter(Split(ThisRecord.Value, Char(10)), StartsWith(Trim(ThisRecord.Value), "type ="))).Value,
+                // Extract Type
+                typeRow: Text(
+                    First(
+                        Filter(
+                            Split(ThisRecord.Value, Char(10)),
+                            StartsWith(Trim(ThisRecord.Value), "type =")
+                        )
+                    ).Value
+                ),
                 variableType: Text(
-                    Mid(typeRow, Find("=", typeRow) + 1, Len(typeRow))
+                    Mid(
+                        typeRow,
+                        Find("=", typeRow) + 1,
+                        Len(typeRow)
+                    )
                 ),
-                
-                // Step 4: Extract Default Value (if present)
-                defaultRow: If(
-                    Find("default =", ThisRecord.Value) > 0,
-                    First(Filter(Split(ThisRecord.Value, Char(10)), StartsWith(Trim(ThisRecord.Value), "default ="))).Value,
-                    ""
-                ),
+
+                // Extract Default Value
                 defaultValue: If(
-                    !IsBlank(defaultRow),
-                    Mid(defaultRow, Find("=", defaultRow) + 1, Len(defaultRow)),
+                    Find("default =", ThisRecord.Value) > 0,
+                    Text(
+                        Mid(
+                            First(
+                                Filter(
+                                    Split(ThisRecord.Value, Char(10)),
+                                    StartsWith(Trim(ThisRecord.Value), "default =")
+                                )
+                            ).Value,
+                            Find("=", First(Filter(Split(ThisRecord.Value, Char(10)), StartsWith(Trim(ThisRecord.Value), "default ="))).Value) + 1,
+                            Len(ThisRecord.Value)
+                        )
+                    ),
                     Blank()
                 ),
-                
-                // Step 5: Extract Validation Condition and Error Message
+
+                // Extract Validation Block
                 validationBlock: If(
                     Find("validation {", ThisRecord.Value) > 0,
-                    Mid(
-                        ThisRecord.Value,
-                        Find("validation {", ThisRecord.Value),
-                        Find("}", ThisRecord.Value, Find("validation {", ThisRecord.Value)) - Find("validation {", ThisRecord.Value) + 1
+                    Text(
+                        Mid(
+                            ThisRecord.Value,
+                            Find("validation {", ThisRecord.Value),
+                            Find("}", ThisRecord.Value, Find("validation {", ThisRecord.Value)) - Find("validation {", ThisRecord.Value) + 1
+                        )
                     ),
-                    ""
+                    Blank()
                 ),
+
+                // Parse Condition and Error Message from Validation Block
                 validationCondition: If(
                     !IsBlank(validationBlock),
-                    Mid(
-                        validationBlock,
-                        Find("condition = ", validationBlock) + 11,
-                        Find(Char(10), validationBlock, Find("condition = ", validationBlock)) - (Find("condition = ", validationBlock) + 11)
+                    Text(
+                        Mid(
+                            validationBlock,
+                            Find("condition = ", validationBlock) + 11,
+                            Find(Char(10), validationBlock, Find("condition = ", validationBlock)) - (Find("condition = ", validationBlock) + 11)
+                        )
                     ),
                     Blank()
                 ),
                 validationError: If(
                     !IsBlank(validationBlock),
-                    Mid(
-                        validationBlock,
-                        Find("error_message = ", validationBlock) + 15,
-                        Find(Char(10), validationBlock, Find("error_message = ", validationBlock)) - (Find("error_message = ", validationBlock) + 15)
+                    Text(
+                        Mid(
+                            validationBlock,
+                            Find("error_message = ", validationBlock) + 15,
+                            Find(Char(10), validationBlock, Find("error_message = ", validationBlock)) - (Find("error_message = ", validationBlock) + 15)
+                        )
                     ),
                     Blank()
                 ),
-                
-                // Step 6: Parse Nested Types (map, object, list)
+
+                // Parse Nested Types (map, object, list)
                 parsedType: If(
                     StartsWith(Trim(variableType), "map("),
                     "{ ""type"": ""map"", ""content"": """ & Mid(variableType, 5, Len(variableType) - 5) & """ }",
@@ -80,7 +106,7 @@ With(
                     )
                 )
             },
-            // Step 7: Construct JSON for Each Variable
+            // Construct Final JSON Object for Each Variable
             {
                 "VariableName": variableName,
                 "Type": parsedType,
