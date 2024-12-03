@@ -1,0 +1,42 @@
+ForAll(
+    Filter(
+        Split(Substitute(ThisItem.variableContent, Char(10), ""), "},"), // Split content by possible row delimiters
+        "object(" in Value || "map(" in Value // Check if the row contains `object(` or `map(`
+    ) As Objects,
+    With(
+        {
+            // Step 1: Locate and Remove the Leading "object({" or "map(object({" and Clean the Content
+            cleanedContent: Trim(
+                Substitute(
+                    Substitute(
+                        Objects.Value,
+                        "object({",
+                        ""
+                    ),
+                    "map(object({",
+                    ""
+                )
+            ),
+
+            // Step 2: Remove Trailing Characters (e.g., "})") and Prepare for Key-Value Parsing
+            finalContent: If(
+                Right(cleanedContent, 2) = "})",
+                Left(cleanedContent, Len(cleanedContent) - 2), // Remove "})"
+                cleanedContent
+            )
+        },
+        // Step 3: Parse Key-Value Pairs from the Cleaned Content
+        ForAll(
+            Split(finalContent, ","), // Split by commas for key-value rows
+            With(
+                {
+                    keyValuePair: Split(ThisRecord.Value, ":") // Split each row into key and value
+                },
+                {
+                    key: First(keyValuePair).Value, // Extract the key
+                    value: Last(keyValuePair).Value // Extract the value
+                }
+            )
+        )
+    )
+)
