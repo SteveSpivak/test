@@ -1,0 +1,39 @@
+ForAll(
+    Filter(
+        Split(Substitute(ThisItem.variableContent, Char(10), ""), "},"),
+        "object(" in Value
+    ) As Objects,
+    With(
+        {
+            // Step 1: Locate the Start of "object({" and Remove It
+            cleanedObject: Mid(
+                Objects.Value,
+                Find("object({", Objects.Value) + Len("object({"),
+                Len(Objects.Value) - Find("object({", Objects.Value) - Len("object({") + 1
+            ),
+
+            // Step 2: Split the Object's Key-Value Pairs
+            keyValuePairs: Split(Substitute(cleanedObject, ")", ""), ","),
+
+            // Step 3: Extract Individual Keys and Values
+            processedPairs: ForAll(
+                keyValuePairs,
+                With(
+                    {
+                        key: Text(Trim(Left(Value, Find("=", Value) - 1))),
+                        value: Text(Trim(Right(Value, Len(Value) - Find("=", Value))))
+                    },
+                    {
+                        key: key,
+                        value: value
+                    }
+                )
+            )
+        },
+        // Step 4: Combine Everything into a Single JSON Structure
+        {
+            objectData: cleanedObject,
+            pairs: processedPairs
+        }
+    )
+)
