@@ -1,0 +1,167 @@
+ClearCollect(colTFdata,
+    ForAll(
+        Filter(
+            Split(terraformFile, "variable"),
+            Len(Trim(ThisRecord.Value)) > 0, // Exclude empty blocks
+            !StartsWith(Value, "#") // Exclude comments
+        ),
+        With(
+            {
+                // Step 1: Extract Variable Name
+                variableName: Text(
+                    Mid(
+                        ThisRecord.Value,
+                        Find("""", ThisRecord.Value) + 1,
+                        Find("""", Mid(ThisRecord.Value, Find("""", ThisRecord.Value) + 1)) - 1
+                    )
+                ),
+
+                // Step 2: Extract the Type Row
+                variableType: Text(
+                    Last(
+                        Split(
+                            LookUp(
+                                Split(ThisRecord.Value, Char(10)) As type,
+                                StartsWith(Trim(type.Value), "type =")
+                            ).Value, 
+                            "="
+                        )
+                    ).Value
+                ),
+
+                // Step 3: Extract the Variable Content
+                variableContent: Trim(
+                    Substitute(
+                        Substitute(
+                            Trim(
+                                Concat(
+                                    Filter(
+                                        Split(ThisRecord.Value, Char(10)),
+                                        !("#" in Value) // Exclude comments
+                                    ) As Row, 
+                                    Row.Value,
+                                    "," & Char(10)
+                                )
+                            ), 
+                            "=", ":"
+                        ), 
+                        Char(10) & ",", ""
+                    )
+                ),
+
+                // Step 4: Extract Default Value
+                defaultValue: If(
+                    Find("default =", ThisRecord.Value) > 0,
+                    Text(
+                        Mid(
+                            First(
+                                Filter(
+                                    Split(ThisRecord.Value, Char(10)),
+                                    StartsWith(Trim(ThisRecord.Value), "default =")
+                                )
+                            ).Value,
+                            Find("=", First(Filter(Split(ThisRecord.Value, Char(10)), StartsWith(Trim(ThisRecord.Value), "default ="))).Value) + 1,
+                            Len(ThisRecord.Value)
+                        )
+                    ),
+                    Blank()
+                ),
+
+                // Step 5: Parse the Type for Details (Optional, Type, Inner Type)
+                parsedType: With(
+                    {
+                        rawType: variableType,
+
+                        // Determine if it's optional
+                        isOptional: StartsWith(Trim(rawType), "optional("),
+                        trimmedType: If(
+                            StartsWith(Trim(rawType), "optional("),
+                            Mid(
+                                rawType,
+                                Find("(", rawType) + 1,
+                                Find(",", rawType) - Find("(", rawType) - 1
+                            ),
+                            rawType
+                        ),
+
+                        // Extract the main type (list/map/object/string)
+                        mainType: If(
+                            StartsWith(Trim(trimmedType), "list("),
+                            "list",
+                            If(
+                                StartsWith(Trim(trimmedType), "map("),
+                                "map",
+                                If(
+                                    StartsWith(Trim(trimmedType), "object("),
+                                    "object",
+                                    trimmedType
+                                )
+                            )
+                        ),
+
+                        // Extract the inner type (for list/map)
+                        innerType: If(
+                            StartsWith(Trim(trimmedType), "list(") || StartsWith(Trim(trimmedType), "map("),
+                            Mid(
+                                trimmedType,
+                                Find("(", trimmedType) + 1,
+                                Find(")", trimmedType) - Find("(", trimmedType) - 1
+                            ),
+                            Blank()
+                        )
+                    },
+                    {
+                        optional: isOptional,
+                        mainType: mainType,
+                        innerType: innerType
+                    }
+                ),
+
+                // Step 6: Handle Nested Objects and Map(Object) Parsing
+                nestedContent: ForAll(
+                    Filter(
+                        Split(Substitute(variableContent, Char(10), ""), "},"), // Split content by delimiters
+                        "object(" in Value || "map(" in Value // Identify rows with nested structures
+                    ) As Objects,
+                    With(
+                        {
+                            // Step 6.1: Clean the Nested Structure
+                            cleanedContent: Trim(Substitute(Substitute(Objects.Value, "object({", ""), "map(object({", ""))),
+
+                            // Step 6.2: Remove Trailing
+                            finalContent: If(
+                                Right(cleanedContent, 2) = "})",
+                                Left(cleanedContent, Len(cleanedContent) - 2),
+                                cleanedContent
+                            )
+                        },
+                        ForAll(
+                            Split(finalContent, ","), // Split by commas to get key-value pairs
+                            With(
+                                {
+                                    keyValuePair: Split(ThisRecord.Value, ":"), // Split each row into key and value
+                                    rawValue: Last(keyValuePair).Value // Extract raw value for further parsing
+                                },
+                                {
+                                    key: First(keyValuePair).Value, // Extract the key
+                                    value: rawValue // Extract the value
+                                }
+                            )
+                        )
+                    )
+                )
+            },
+            {
+                // Final Output for Each Variable
+                variableName: variableName,
+                variableType: parsedType.mainType,
+                optional: parsedType.optional,
+                innerType: parsedType.innerType,
+                defaultValue: defaultValue,
+                validationBlock: validationBlock,
+                variableContent: variableContent,
+                nestedContent: nestedContent
+            }
+        )
+    )
+);
