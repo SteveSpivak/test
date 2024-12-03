@@ -1,0 +1,100 @@
+ForAll(
+    Filter(
+        Split(terraformFile, "variable"),
+        Len(Trim(ThisRecord.Value)) > 0, // Exclude empty blocks
+        !StartsWith(Value, "#") // Exclude comments
+    ),
+    With(
+        {
+            // Extract Variable Name
+            variableName: Text(
+                Mid(
+                    ThisRecord.Value,
+                    Find("""", ThisRecord.Value) + 1,
+                    Find("""", Mid(ThisRecord.Value, Find("""", ThisRecord.Value) + 1)) - 1
+                )
+            ),
+            
+            // Extract the type row
+            variableType: Text(
+                Last(
+                    Split(
+                        LookUp(
+                            Split(ThisRecord.Value, Char(10)) As type,
+                            StartsWith(Trim(type.Value), "type =")
+                        ).Value,
+                        "="
+                    )
+                ).Value
+            ),
+            
+            // Extract Default Value
+            defaultValue: If(
+                Find("default =", ThisRecord.Value) > 0,
+                Text(
+                    Mid(
+                        First(
+                            Filter(
+                                Split(ThisRecord.Value, Char(10)),
+                                StartsWith(Trim(ThisRecord.Value), "default =")
+                            )
+                        ).Value,
+                        Find("=", First(Filter(Split(ThisRecord.Value, Char(10)), StartsWith(Trim(ThisRecord.Value), "default ="))).Value) + 1,
+                        Len(ThisRecord.Value)
+                    )
+                ),
+                Blank()
+            ),
+            
+            // Extract Validation Block
+            validationBlock: If(
+                Find("validation {", ThisRecord.Value) > 0,
+                Text(
+                    Mid(
+                        ThisRecord.Value,
+                        Find("validation {", ThisRecord.Value),
+                        Find("}", ThisRecord.Value, Find("validation {", ThisRecord.Value)) - Find("validation {", ThisRecord.Value) + 1
+                    )
+                ),
+                Blank()
+            ),
+
+            // Extract variable content
+            variableContent: Trim(
+                Substitute(
+                    Substitute(
+                        Trim(
+                            Concat(
+                                Filter(
+                                    Split(ThisRecord.Value, Char(10)),
+                                    !("#" in Value)
+                                ) As Row,
+                                Row.Value,
+                                "," & Char(10)
+                            )
+                        ),
+                        "=",
+                        ":"
+                    ),
+                    Char(10) & ",",
+                    ""
+                )
+            )
+        },
+        {
+            variableName: variableName,
+            variableType: variableType,
+            defaultValue: defaultValue,
+            validationBlock: validationBlock,
+            variableContent: Substitute(
+                Substitute(
+                    Substitute(variableContent, """" & variableName & """", variableName & ":"),
+                    "{,",
+                    "{"
+                ),
+                ",}",
+                "}"
+            )
+        }
+    )
+)
