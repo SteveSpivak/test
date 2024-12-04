@@ -1,0 +1,80 @@
+ClearCollect(colTFdata,
+    ForAll(
+        Filter(
+            Split(terraformFile, "# --------------------------------------------------------- #"),
+            Len(Trim(ThisRecord.Value)) > 0 // Exclude empty sections
+        ),
+        With(
+            {
+                // Step 1: Extract Variable Block
+                variableBlock: Trim(ThisRecord.Value),
+
+                // Step 2: Extract Variable Name
+                variableName: Text(
+                    Mid(
+                        variableBlock,
+                        Find("""", variableBlock) + 1,
+                        Find("""", Mid(variableBlock, Find("""", variableBlock) + 1)) - 1
+                    )
+                ),
+
+                // Step 3: Split into Lines for Processing
+                variableLines: Split(variableBlock, Char(10)),
+
+                // Step 4: Parse Nested Structures Using Indentation
+                nestedContent: ForAll(
+                    Filter(
+                        variableLines,
+                        Len(Trim(Value)) > 0 && !StartsWith(Value, "#") // Exclude empty and comment lines
+                    ) As Line,
+                    With(
+                        {
+                            // Identify Current Indentation Level (Count Spaces Before Text)
+                            indentLevel: Len(Line.Value) - Len(TrimStart(Line.Value)),
+
+                            // Check if Line Contains a Nested Structure
+                            isObject: "object(" in Line.Value,
+                            isMap: "map(" in Line.Value,
+                            isOptional: "optional(" in Line.Value,
+                            hasDefault: "=" in Line.Value && "(" in Line.Value && ")" in Line.Value,
+
+                            // Extract Key, Type, and Default Value
+                            keyValuePair: If(
+                                " = " in Line.Value,
+                                Split(Line.Value, " = "),
+                                Blank()
+                            ),
+                            key: If(
+                                !IsBlank(keyValuePair),
+                                Trim(First(keyValuePair).Value),
+                                Blank()
+                            ),
+                            value: If(
+                                !IsBlank(keyValuePair),
+                                Trim(Last(keyValuePair).Value),
+                                Blank()
+                            ),
+
+                            // Determine if It's End of a Structure
+                            isEndOfStructure: Find("})", Line.Value) > 0
+                        },
+                        {
+                            key: key,
+                            value: value,
+                            indentLevel: indentLevel,
+                            isObject: isObject,
+                            isMap: isMap,
+                            isOptional: isOptional,
+                            hasDefault: hasDefault,
+                            isEndOfStructure: isEndOfStructure
+                        }
+                    )
+                )
+            },
+            {
+                variableName: variableName,
+                nestedContent: nestedContent
+            }
+        )
+    )
+);
