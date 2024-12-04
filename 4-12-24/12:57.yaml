@@ -1,0 +1,83 @@
+// Step 1: Create the initial flat collection with row data
+ClearCollect(
+    colRows,
+    ForAll(
+        Filter(
+            Split(terraformFile, "# --------------------------------------------------------- #"),
+            Len(Trim(ThisRecord.Value)) > 0 // Exclude empty sections
+        ) As sections,
+        ForAll(
+            Filter(
+                Split(sections.Value, Char(10)),
+                Len(Trim(Value)) > 0 // Exclude empty lines
+            ) As Line,
+            With(
+                {
+                    indentLevel: Len(Line.Value) - Len(Trim(Line.Value)),
+                    isObject: "object(" in Line.Value,
+                    isMap: "map(" in Line.Value,
+                    isOptional: "optional(" in Line.Value,
+                    isStartOfStructure: Find("(", Line.Value) > 0,
+                    isEndOfStructure: Find("})", Line.Value) > 0 || Find("}", Line.Value) > 0,
+                    key: If(
+                        " = " in Line.Value,
+                        Trim(First(Split(Line.Value, " = ")).Value),
+                        Blank()
+                    ),
+                    value: If(
+                        " = " in Line.Value,
+                        Trim(Last(Split(Line.Value, " = ")).Value),
+                        Blank()
+                    ),
+                    detectedWrapper: If(
+                        isObject,
+                        "object",
+                        If(isMap, "map", If(isOptional, "optional", Blank()))
+                    )
+                },
+                {
+                    sectionName: Text(
+                        Mid(
+                            sections.Value,
+                            Find("""", sections.Value) + 1,
+                            Find("""", Mid(sections.Value, Find("""", sections.Value) + 1)) - 1
+                        )
+                    ),
+                    indentLevel: indentLevel,
+                    key: key,
+                    value: value,
+                    detectedWrapper: detectedWrapper
+                }
+            )
+        )
+    )
+);
+
+// Step 2: Assign Parent Wrappers Using Iterative Logic
+ClearCollect(
+    colRowsWithParents,
+    ForAll(
+        colRows,
+        With(
+            {
+                parentWrapper: If(
+                    detectedWrapper <> Blank(),
+                    key,
+                    LookUp(
+                        colRows,
+                        indentLevel < ThisRecord.indentLevel && key <> Blank(),
+                        key
+                    )
+                )
+            },
+            {
+                sectionName: sectionName,
+                indentLevel: indentLevel,
+                key: key,
+                value: value,
+                detectedWrapper: detectedWrapper,
+                parentWrapper: parentWrapper
+            }
+        )
+    )
+);
