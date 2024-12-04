@@ -1,0 +1,97 @@
+ClearCollect(
+    colRows,
+    ForAll(
+        Filter(
+            Split(terraformFile, "# --------------------------------------------------------- #"),
+            Len(Trim(ThisRecord.Value)) > 0 // Exclude empty sections
+        ) As sections,
+        With(
+            {
+                variableName: Text(
+                    Mid(
+                        sections.Value,
+                        Find("""", sections.Value) + 1,
+                        Find("""", Mid(sections.Value, Find("""", sections.Value) + 1)) - 1
+                    )
+                ),
+                parsedLines: ForAll(
+                    Filter(
+                        Split(sections.Value, Char(10)),
+                        Len(Trim(Value)) > 0 // Exclude empty lines
+                    ) As Line,
+                    With(
+                        {
+                            indent: Len(Line.Value) - Len(Trim(Line.Value)),
+                            isObject: "object(" in Line.Value,
+                            isMap: "map(" in Line.Value,
+                            isOptional: "optional(" in Line.Value,
+                            isStartOfStructure: Find("(", Line.Value) > 0,
+                            isEndOfStructure: Find("})", Line.Value) > 0 || Find("}", Line.Value) > 0,
+
+                            key: If(
+                                " = " in Line.Value,
+                                Trim(First(Split(Line.Value, " = ")).Value),
+                                Blank()
+                            ),
+                            value: If(
+                                " = " in Line.Value,
+                                Trim(Last(Split(Line.Value, " = ")).Value),
+                                Blank()
+                            ),
+
+                            // Identify Parent Wrapper
+                            parentWrapper: If(
+                                 "object(" in Line.Value || "map(" in Line.Value || "optional(" in Line.Value,
+                                Trim(If("object(" in Line.Value, "object", If("map(" in Line.Value, "map", "optional"))),
+                                Blank()
+                            )
+                        },
+                        {
+                            indentLevel: indent,
+                            key: key,
+                            value: value,
+                            parentWrapper: parentWrapper
+                        }
+                    )
+                )
+            },
+            {
+                variableName: variableName,
+                parsedLines: parsedLines
+            }
+        )
+    )
+);
+
+// Step 2: Calculate Inherited Wrappers
+ClearCollect(
+    colRowsWithParents,
+    ForAll(
+        colRows,
+        ForAll(
+            parsedLines,
+            With(
+                {
+                    // Assign Parent Wrapper Based on Indentation
+                    inheritedWrapper: If(
+                        parentWrapper <> Blank(),
+                        parentWrapper,
+                        LookUp(
+                            colRowsWithParents,
+                            indentLevel < ThisRecord.indentLevel && !IsBlank(parentWrapper),
+                            parentWrapper
+                        )
+                    )
+                },
+                {
+                    variableName: variableName,
+                    key: key,
+                    value: value,
+                    indentLevel: indentLevel,
+                    parentWrapper: parentWrapper,
+                    inheritedWrapper: inheritedWrapper
+                }
+            )
+        )
+    )
+);
