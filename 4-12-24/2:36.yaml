@@ -1,0 +1,74 @@
+ClearCollect(
+    colParsedData,
+    ForAll(
+        Filter(
+            Split(terraformFile, "# --------------------------------------------------------- #"),
+            Len(Trim(ThisRecord.Value)) > 0 // Exclude empty sections
+        ) As sections,
+        ForAll(
+            Filter(
+                Split(sections.Value, Char(10)),
+                Len(Trim(Value)) > 0 // Exclude empty lines
+            ) As Line,
+            With(
+                {
+                    indentLevel: Len(Line.Value) - Len(Trim(Line.Value)), // Calculate indentation
+                    key: If(
+                        " = " in Line.Value,
+                        Trim(First(Split(Line.Value, " = ")).Value),
+                        Blank()
+                    ),
+                    value: If(
+                        " = " in Line.Value,
+                        Trim(Last(Split(Line.Value, " = ")).Value),
+                        Blank()
+                    ),
+                    detectedWrapper: If(
+                        "object(" in Line.Value,
+                        "object",
+                        If(
+                            "map(" in Line.Value,
+                            "map",
+                            If("optional(" in Line.Value, "optional", Blank())
+                        )
+                    ),
+
+                    // Wrapping Logic: Assign dynamic wrapper columns
+                    topWrapper: If(
+                        indentLevel = 0,
+                        key, // First-level wrapper
+                        LookUp(
+                            colParsedData,
+                            indentLevel = Max(Filter(colParsedData, indentLevel < ThisRecord.indentLevel).indentLevel),
+                            key
+                        )
+                    ),
+                    secondWrapper: If(
+                        indentLevel = 1,
+                        key,
+                        LookUp(
+                            colParsedData,
+                            indentLevel = Max(Filter(colParsedData, indentLevel < ThisRecord.indentLevel).indentLevel - 1),
+                            key
+                        )
+                    )
+                },
+                {
+                    sectionName: Text(
+                        Mid(
+                            sections.Value,
+                            Find("""", sections.Value) + 1,
+                            Find("""", Mid(sections.Value, Find("""", sections.Value) + 1)) - 1
+                        )
+                    ),
+                    indentLevel: indentLevel,
+                    key: key,
+                    value: value,
+                    detectedWrapper: detectedWrapper,
+                    topWrapper: topWrapper,
+                    secondWrapper: secondWrapper
+                }
+            )
+        )
+    )
+);
