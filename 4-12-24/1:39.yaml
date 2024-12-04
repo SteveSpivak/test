@@ -1,0 +1,98 @@
+// Step 1: Parse Rows with Initial Data
+ClearCollect(
+    colFlatRows,
+    ForAll(
+        Filter(
+            Split(terraformFile, "# --------------------------------------------------------- #"),
+            Len(Trim(ThisRecord.Value)) > 0 // Exclude empty sections
+        ) As sections,
+        ForAll(
+            Filter(
+                Split(sections.Value, Char(10)),
+                Len(Trim(Value)) > 0 // Exclude empty lines
+            ) As Line,
+            With(
+                {
+                    indentLevel: Len(Line.Value) - Len(Trim(Line.Value)), // Calculate indentation
+                    key: If(
+                        " = " in Line.Value,
+                        Trim(First(Split(Line.Value, " = ")).Value),
+                        Blank()
+                    ),
+                    value: If(
+                        " = " in Line.Value,
+                        Trim(Last(Split(Line.Value, " = ")).Value),
+                        Blank()
+                    ),
+                    isObject: "object(" in Line.Value,
+                    isMap: "map(" in Line.Value,
+                    isOptional: "optional(" in Line.Value,
+                    detectedWrapper: If(
+                        "object(" in Line.Value,
+                        "object",
+                        If(
+                            "map(" in Line.Value,
+                            "map",
+                            If("optional(" in Line.Value, "optional", Blank())
+                        )
+                    )
+                },
+                {
+                    sectionName: Text(
+                        Mid(
+                            sections.Value,
+                            Find("""", sections.Value) + 1,
+                            Find("""", Mid(sections.Value, Find("""", sections.Value) + 1)) - 1
+                        )
+                    ),
+                    indentLevel: indentLevel,
+                    key: key,
+                    value: value,
+                    detectedWrapper: detectedWrapper
+                }
+            )
+        )
+    )
+);
+
+// Step 2: Assign Parent Wrappers and Track Levels
+ClearCollect(
+    colParsedRows,
+    ForAll(
+        colFlatRows,
+        With(
+            {
+                // Compute Dynamic Levels
+                parentLevels: ForAll(
+                    Sequence(FirstN(colFlatRows, indentLevel).Count), // Generate sequence up to current indent level
+                    LookUp(
+                        colFlatRows,
+                        indentLevel = Value,
+                        key
+                    )
+                ),
+                // Build Wrapper Hierarchy
+                wrapperHierarchy: Concat(
+                    ForAll(
+                        Sequence(indentLevel),
+                        LookUp(
+                            colFlatRows,
+                            indentLevel = ThisRecord.Value && detectedWrapper <> Blank(),
+                            detectedWrapper
+                        )
+                    ),
+                    " -> "
+                )
+            },
+            {
+                sectionName: sectionName,
+                indentLevel: indentLevel,
+                key: key,
+                value: value,
+                detectedWrapper: detectedWrapper,
+                wrapperHierarchy: wrapperHierarchy,
+                parentLevels: parentLevels // Dynamic parent columns
+            }
+        )
+    )
+);
