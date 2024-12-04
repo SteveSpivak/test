@@ -1,0 +1,67 @@
+ClearCollect(
+    colTFdata3,
+    ForAll(
+        Filter(
+            Split(terraformFile, "# --------------------------------------------------------- #"),
+            Len(Trim(ThisRecord.Value)) > 0 // Exclude empty sections
+        ),
+        ForAll(
+            // Parse Content
+            Filter(
+                Split(ThisRecord.Value, Char(10)),
+                Len(Trim(Value)) > 0 // Exclude empty lines
+            ) As Line,
+            With(
+                {
+                    // Step 1: Extract Variable Name
+                    variableName: Text(
+                        Mid(
+                            ThisRecord.Value,
+                            Find("""", ThisRecord.Value) + 1,
+                            Find("""", Mid(ThisRecord.Value, Find("""", ThisRecord.Value) + 1)) - 1
+                        )
+                    ),
+
+                    // Step 2: Calculate Indentation Level
+                    indentLevel: Len(Line.Value) - Len(Trim(Line.Value)),
+
+                    // Step 3: Identify Line Content
+                    isObject: "object(" in Line.Value,
+                    isMap: "map(" in Line.Value,
+                    isOptional: "optional(" in Line.Value,
+                    isStartOfStructure: Find("(", Line.Value) > 0,
+                    isEndOfStructure: Find("})", Line.Value) > 0 || Find("}", Line.Value) > 0,
+
+                    // Step 4: Extract Key and Value
+                    keyValuePair: If(
+                        " = " in Line.Value,
+                        Split(Line.Value, " = "),
+                        Blank()
+                    ),
+                    key: If(
+                        !IsBlank(keyValuePair),
+                        Trim(First(keyValuePair).Value),
+                        Blank()
+                    ),
+                    value: If(
+                        !IsBlank(keyValuePair),
+                        Trim(Last(keyValuePair).Value),
+                        Blank()
+                    )
+                },
+                {
+                    // Output Final Row
+                    variableName: variableName,
+                    key: key,
+                    value: value,
+                    indentLevel: indentLevel,
+                    isObject: isObject,
+                    isMap: isMap,
+                    isOptional: isOptional,
+                    isStartOfStructure: isStartOfStructure,
+                    isEndOfStructure: isEndOfStructure
+                }
+            )
+        )
+    )
+);
