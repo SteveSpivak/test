@@ -1,0 +1,79 @@
+ClearCollect(colTFdata,
+    ForAll(
+        Filter(
+            Split(terraformFile, "# --------------------------------------------------------- #"),
+            Len(Trim(ThisRecord.Value)) > 0 // Exclude empty sections
+        ),
+        With(
+            {
+                // Step 1: Extract Variable Block
+                variableBlock: ThisRecord.Value,
+
+                // Step 2: Extract Variable Name
+                variableName: Text(
+                    Mid(
+                        variableBlock,
+                        Find("""", variableBlock) + 1,
+                        Find("""", Mid(variableBlock, Find("""", variableBlock) + 1)) - 1
+                    )
+                ),
+
+                // Step 3: Split Block into Lines (Retain Indentation)
+                variableLines: Split(variableBlock, Char(10)),
+
+                // Step 4: Parse Lines and Track Nesting
+                parsedContent: ForAll(
+                    Filter(
+                        variableLines,
+                        Len(Trim(Value)) > 0 // Exclude empty lines
+                    ) As Line,
+                    With(
+                        {
+                            // Step 4.1: Calculate Indentation Level
+                            indentLevel: Len(Line.Value) - Len(TrimStart(Line.Value)),
+
+                            // Step 4.2: Identify Line Content
+                            isObject: "object(" in Line.Value,
+                            isMap: "map(" in Line.Value,
+                            isOptional: "optional(" in Line.Value,
+                            isStartOfStructure: Find("(", Line.Value) > 0,
+                            isEndOfStructure: Find("})", Line.Value) > 0 || Find("}", Line.Value) > 0,
+
+                            // Step 4.3: Extract Key and Value
+                            keyValuePair: If(
+                                " = " in Line.Value,
+                                Split(Line.Value, " = "),
+                                Blank()
+                            ),
+                            key: If(
+                                !IsBlank(keyValuePair),
+                                Trim(First(keyValuePair).Value),
+                                Blank()
+                            ),
+                            value: If(
+                                !IsBlank(keyValuePair),
+                                Trim(Last(keyValuePair).Value),
+                                Blank()
+                            )
+                        },
+                        {
+                            key: key,
+                            value: value,
+                            indentLevel: indentLevel,
+                            isObject: isObject,
+                            isMap: isMap,
+                            isOptional: isOptional,
+                            isStartOfStructure: isStartOfStructure,
+                            isEndOfStructure: isEndOfStructure,
+                            parentKey: "" // Placeholder for grouping later
+                        }
+                    )
+                )
+            },
+            {
+                variableName: variableName,
+                parsedContent: parsedContent
+            }
+        )
+    )
+);
