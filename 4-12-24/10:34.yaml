@@ -1,0 +1,100 @@
+ClearCollect(
+    colTFdata3,
+    ForAll(
+        Filter(
+            Split(terraformFile, "# --------------------------------------------------------- #"),
+            Len(Trim(ThisRecord.Value)) > 0 // Exclude empty sections
+        ),
+        With(
+            {
+                // Step 1: Extract Variable Name
+                variableName: Text(
+                    Mid(
+                        ThisRecord.Value,
+                        Find("""", ThisRecord.Value) + 1,
+                        Find("""", Mid(ThisRecord.Value, Find("""", ThisRecord.Value) + 1)) - 1
+                    )
+                ),
+
+                // Step 2: Parse Lines and Track Nesting
+                parsedContent: ForAll(
+                    Filter(
+                        Split(ThisRecord.Value, Char(10)),
+                        Len(Trim(Value)) > 0 // Exclude empty lines
+                    ) As Line,
+                    With(
+                        {
+                            // Step 2.1: Calculate Indentation Level
+                            indentLevel: Len(Line.Value) - Len(Trim(Line.Value)),
+
+                            // Step 2.2: Identify Line Content
+                            isObject: "object(" in Line.Value,
+                            isMap: "map(" in Line.Value,
+                            isOptional: "optional(" in Line.Value,
+                            isStartOfStructure: Find("(", Line.Value) > 0,
+                            isEndOfStructure: Find("})", Line.Value) > 0 || Find("}", Line.Value) > 0,
+
+                            // Step 2.3: Extract Key and Value
+                            keyValuePair: If(
+                                " = " in Line.Value,
+                                Split(Line.Value, " = "),
+                                Blank()
+                            ),
+                            key: If(
+                                !IsBlank(keyValuePair),
+                                Trim(First(keyValuePair).Value),
+                                Blank()
+                            ),
+                            value: If(
+                                !IsBlank(keyValuePair),
+                                Trim(Last(keyValuePair).Value),
+                                Blank()
+                            )
+                        },
+                        {
+                            key: key,
+                            value: value,
+                            indentLevel: indentLevel,
+                            isObject: isObject,
+                            isMap: isMap,
+                            isOptional: isOptional,
+                            isStartOfStructure: isStartOfStructure,
+                            isEndOfStructure: isEndOfStructure
+                        }
+                    )
+                )
+            },
+            {
+                variableName: variableName,
+                parsedContent: parsedContent
+            }
+        )
+    )
+);
+
+// Step 2: Add Parent Key Based on Indentation
+ClearCollect(
+    colTFdataWithParent,
+    ForAll(
+        colTFdata3,
+        With(
+            {
+                parentKey: LookUp(
+                    colTFdata3.parsedContent,
+                    indentLevel < ThisRecord.indentLevel && key <> Blank(),
+                    key
+                )
+            },
+            {
+                variableName: variableName,
+                key: ThisRecord.parsedContent.key,
+                value: ThisRecord.parsedContent.value,
+                indentLevel: ThisRecord.parsedContent.indentLevel,
+                parentKey: parentKey,
+                isObject: ThisRecord.parsedContent.isObject,
+                isMap: ThisRecord.parsedContent.isMap,
+                isOptional: ThisRecord.parsedContent.isOptional
+            }
+        )
+    )
+);
