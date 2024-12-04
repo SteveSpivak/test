@@ -1,0 +1,133 @@
+ClearCollect(colTFdata,
+    ForAll(
+        Filter(
+            Split(terraformFile, "variable"),
+            Len(Trim(ThisRecord.Value)) > 0, // Exclude empty blocks
+            !StartsWith(Value, "#") // Exclude comments
+        ),
+        With(
+            {
+                // Step 1: Extract Variable Name
+                variableName: Text(
+                    Mid(
+                        ThisRecord.Value,
+                        Find("""", ThisRecord.Value) + 1,
+                        Find("""", Mid(ThisRecord.Value, Find("""", ThisRecord.Value) + 1)) - 1
+                    )
+                ),
+
+                // Step 2: Extract the Type Row
+                variableType: Text(
+                    Last(
+                        Split(
+                            LookUp(
+                                Split(ThisRecord.Value, Char(10)) As type,
+                                StartsWith(Trim(type.Value), "type =")
+                            ).Value,
+                            "="
+                        )
+                    ).Value
+                ),
+
+                // Step 3: Extract the Variable Content (Raw Content)
+                variableContent: Trim(
+                    Substitute(
+                        Concat(
+                            Filter(
+                                Split(ThisRecord.Value, Char(10)),
+                                !("#" in Value) // Exclude comments
+                            ) As Row,
+                            Row.Value & Char(10)
+                        ),
+                        Char(10) & ",", ""
+                    )
+                ),
+
+                // Step 4: Extract Default Value
+                defaultValue: If(
+                    Find("default =", ThisRecord.Value) > 0,
+                    Text(
+                        Mid(
+                            First(
+                                Filter(
+                                    Split(ThisRecord.Value, Char(10)),
+                                    StartsWith(Trim(ThisRecord.Value), "default =")
+                                )
+                            ).Value,
+                            Find("=", First(Filter(Split(ThisRecord.Value, Char(10)), StartsWith(Trim(ThisRecord.Value), "default ="))).Value) + 1,
+                            Len(ThisRecord.Value)
+                        )
+                    ),
+                    Blank()
+                ),
+
+                // Step 5: Handle Nested Objects and Map(Object) Parsing
+                nestedContent: ForAll(
+                    Filter(
+                        Split(
+                            Substitute(variableContent, Char(10), ""), "},"
+                        ),
+                        "object(" in Value || "map(" in Value // Identify rows with nested structures
+                    ) As Objects,
+                    With(
+                        {
+                            // Step 5.1: Locate the Start and End of Nested Structures
+                            objectStart: Find("{", Objects.Value),
+                            objectEnd: Find("}", Objects.Value, Find("{", Objects.Value)),
+
+                            // Step 5.2: Extract Object Content
+                            cleanedContent: Mid(
+                                Objects.Value,
+                                objectStart + 1,
+                                objectEnd - objectStart - 1
+                            ),
+
+                            // Step 5.3: Count Nested Levels
+                            nestedLevel: CountRows(
+                                Filter(
+                                    Split(Objects.Value, ""),
+                                    Value = "{"
+                                )
+                            ) - CountRows(
+                                Filter(
+                                    Split(Objects.Value, ""),
+                                    Value = "}"
+                                )
+                            )
+                        },
+                        ForAll(
+                            Split(cleanedContent, ","), // Split by commas to get key-value pairs
+                            With(
+                                {
+                                    keyValuePair: Split(ThisRecord.Value, ":") // Split each row into key and value
+                                },
+                                {
+                                    key: First(keyValuePair).Value, // Extract the key
+                                    value: Last(keyValuePair).Value, // Extract the value
+                                    isOptional: "optional" in Last(keyValuePair).Value, // Determine if it's optional
+                                    innerType: If(
+                                        StartsWith(Trim(value), "list("),
+                                        Mid(value, Find("(", value) + 1, Find(")", value) - Find("(", value) - 1),
+                                        If(
+                                            StartsWith(Trim(value), "map("),
+                                            Mid(value, Find("(", value) + 1, Find(")", value) - Find("(", value) - 1),
+                                            value
+                                        )
+                                    )
+                                }
+                            )
+                        )
+                    )
+                )
+            },
+            {
+                // Final Output for Each Variable
+                variableName: variableName,
+                variableType: variableType,
+                defaultValue: defaultValue,
+                variableContent: variableContent,
+                nestedContent: nestedContent
+            }
+        )
+    )
+);
