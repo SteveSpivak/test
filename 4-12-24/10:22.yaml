@@ -26,11 +26,12 @@ ClearCollect(colTFdata3,
                             // Step 2.1: Calculate Indentation Level
                             indentLevel: Len(Line.Value) - Len(Trim(Line.Value)),
 
-                            // Step 2.2: Identify Line Type
+                            // Step 2.2: Identify Line Content
                             isObject: "object(" in Line.Value,
                             isMap: "map(" in Line.Value,
                             isOptional: "optional(" in Line.Value,
-                            isList: "list(" in Line.Value,
+                            isStartOfStructure: Find("(", Line.Value) > 0,
+                            isEndOfStructure: Find("})", Line.Value) > 0 || Find("}", Line.Value) > 0,
 
                             // Step 2.3: Extract Key and Value
                             keyValuePair: If(
@@ -49,16 +50,11 @@ ClearCollect(colTFdata3,
                                 Blank()
                             ),
 
-                            // Step 2.4: Determine Parent Key Dynamically
-                            parentKey: If(
-                                indentLevel > 0,
-                                Last(
-                                    Filter(
-                                        parsedContent,
-                                        indentLevel > ThisRecord.indentLevel && !IsBlank(key) // Find closest parent
-                                    )
-                                ).key,
-                                Blank()
+                            // Step 2.4: Determine Parent Key Based on Indentation
+                            parentKey: LookUp(
+                                parsedContent,
+                                indentLevel < ThisRecord.indentLevel && key <> Blank(),
+                                key
                             )
                         },
                         {
@@ -68,7 +64,8 @@ ClearCollect(colTFdata3,
                             isObject: isObject,
                             isMap: isMap,
                             isOptional: isOptional,
-                            isList: isList,
+                            isStartOfStructure: isStartOfStructure,
+                            isEndOfStructure: isEndOfStructure,
                             parentKey: parentKey // Track the parent dynamically
                         }
                     )
