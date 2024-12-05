@@ -1,0 +1,23 @@
+ForAll(
+    colFlatRows,
+    Collect(
+        colFlatRowsWithParent,
+        With(
+            {
+                parentWrapper: LookUp(
+                    colFlatRows,
+                    indentLevel < ThisRecord.indentLevel &&
+                    isStartWrapper = true,
+                    key
+                )
+            },
+            {
+                key: ThisRecord.key,
+                value: ThisRecord.value,
+                detectedWrapper: ThisRecord.detectedWrapper,
+                parentWrapper: parentWrapper,
+                indentLevel: ThisRecord.indentLevel
+            }
+        )
+    )
+);
