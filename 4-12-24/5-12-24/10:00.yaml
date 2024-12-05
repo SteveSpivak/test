@@ -1,0 +1,120 @@
+// Clear previous collections
+Clear(colIndexedLines);
+Clear(colVariableStarts);
+Clear(colVariableDefinitions);
+Clear(colVariables);
+
+// Step 1: Split the file into lines and index them
+ClearCollect(
+    colIndexedLines,
+    AddColumns(
+        Filter(
+            Split(terraformFile, Char(10)),
+            !IsBlank(Trim(Value))
+        ),
+        "LineNumber", CountRows(colIndexedLines) + 1
+    )
+);
+
+// Step 2: Identify variable start lines and extract variable names
+ClearCollect(
+    colVariableStarts,
+    AddColumns(
+        Filter(
+            colIndexedLines,
+            StartsWith(Trim(Value), "variable ")
+        ),
+        "VariableName", 
+        Mid(
+            Value,
+            Find("\"", Value) + 1,
+            Find("\"", Value, Find("\"", Value) + 1) - Find("\"", Value) - 1
+        ),
+        "StartLineNumber", LineNumber
+    )
+);
+
+// Step 3: Determine variable end lines
+ClearCollect(
+    colVariableDefinitions,
+    ForAll(
+        Sequence(CountRows(colVariableStarts)),
+        With(
+            {
+                varIndex: Value,
+                varStart: Last(FirstN(colVariableStarts, Value)),
+                varEndLineNumber: If(
+                    Value < CountRows(colVariableStarts),
+                    First(
+                        Sort(
+                            Filter(
+                                colVariableStarts,
+                                LineNumber > varStart.StartLineNumber
+                            ),
+                            LineNumber,
+                            Ascending
+                        )
+                    ).StartLineNumber - 1,
+                    Max(colIndexedLines, LineNumber)
+                )
+            },
+            {
+                VariableName: varStart.VariableName,
+                StartLineNumber: varStart.StartLineNumber,
+                EndLineNumber: varEndLineNumber
+            }
+        )
+    )
+);
+
+// Step 4: Extract variable details
+ClearCollect(
+    colVariables,
+    ForAll(
+        colVariableDefinitions As varDef,
+        With(
+            {
+                varLines: Filter(
+                    colIndexedLines,
+                    LineNumber > varDef.StartLineNumber && LineNumber <= varDef.EndLineNumber
+                ),
+                typeLine: First(
+                    Filter(
+                        varLines,
+                        StartsWith(Trim(Value), "type")
+                    )
+                ),
+                defaultLine: First(
+                    Filter(
+                        varLines,
+                        StartsWith(Trim(Value), "default")
+                    )
+                ),
+                descriptionLine: First(
+                    Filter(
+                        varLines,
+                        StartsWith(Trim(Value), "description")
+                    )
+                )
+            },
+            {
+                VariableName: varDef.VariableName,
+                Type: If(
+                    !IsBlank(typeLine.Value),
+                    Trim(Last(Split(typeLine.Value, "=")).Value),
+                    ""
+                ),
+                Default: If(
+                    !IsBlank(defaultLine.Value),
+                    Trim(Last(Split(defaultLine.Value, "=")).Value),
+                    ""
+                ),
+                Description: If(
+                    !IsBlank(descriptionLine.Value),
+                    Trim(Last(Split(descriptionLine.Value, "=")).Value),
+                    ""
+                )
+            }
+        )
+    )
+);
