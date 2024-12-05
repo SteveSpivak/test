@@ -1,0 +1,25 @@
+ClearCollect(
+    colParsedRows,
+    ForAll(
+        colFlatRowsWithRowNumbers As CurrentRow,
+        With(
+            {
+                parentWrapper: LookUp(
+                    colFlatRowsWithRowNumbers,
+                    RowNumber < CurrentRow.RowNumber &&
+                    indentLevel < CurrentRow.indentLevel &&
+                    isStartWrapper,
+                    key
+                )
+            },
+            {
+                RowNumber: CurrentRow.RowNumber,
+                indentLevel: CurrentRow.indentLevel,
+                key: CurrentRow.key,
+                value: CurrentRow.value,
+                detectedWrapper: CurrentRow.detectedWrapper,
+                parentWrapper: parentWrapper
+            }
+        )
+    )
+);
