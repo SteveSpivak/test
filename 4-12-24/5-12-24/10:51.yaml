@@ -1,0 +1,206 @@
+// Clear previous collections
+Clear(colSections);
+Clear(colLines);
+Clear(colVariables);
+
+// Step 1: Split the file into sections using the separator
+ClearCollect(
+    colSections,
+    Filter(
+        Split(terraformFile, "# --------------------------------------------------------- #"),
+        !IsBlank(Trim(Value))
+    )
+);
+
+// Step 2: Process each section separately
+ForAll(
+    colSections As currentSection,
+    With(
+        {
+            // Split the section into lines and index them
+            sectionLines: Filter(
+                Split(currentSection.Value, Char(10)),
+                !IsBlank(Trim(Value))
+            )
+        },
+        Collect(
+            colLines,
+            ForAll(
+                Sequence(CountRows(sectionLines)),
+                {
+                    SectionIndex: Index, // Index of the section
+                    LineNumber: CountRows(colLines) + 1, // Global line number
+                    SectionLineNumber: Value, // Line number within the section
+                    Value: Trim(
+                        Last(
+                            FirstN(
+                                sectionLines,
+                                Value
+                            )
+                        ).Value
+                    )
+                }
+            )
+        )
+    )
+);
+
+// Step 3: Identify variable start lines and extract variable names
+ClearCollect(
+    colVariableStarts,
+    AddColumns(
+        Filter(
+            colLines,
+            StartsWith(Value, "variable ")
+        ),
+        "VariableName",
+        // Extract the variable name between the first pair of double quotes
+        Mid(
+            Value,
+            Find("\"", Value) + 1,
+            Find("\"", Value, Find("\"", Value) + 1) - Find("\"", Value) - 1
+        ),
+        "StartLineNumber",
+        LineNumber,
+        "SectionIndex",
+        SectionIndex
+    )
+);
+
+// Step 4: Number the variables for indexing
+ClearCollect(
+    colVariableStartsNumbered,
+    AddColumns(
+        colVariableStarts,
+        "Index",
+        CountRows(
+            Filter(
+                colVariableStarts,
+                LineNumber <= ThisRecord.LineNumber
+            )
+        )
+    )
+);
+
+// Step 5: Determine variable end lines within the same section
+ClearCollect(
+    colVariableDefinitions,
+    ForAll(
+        colVariableStartsNumbered As varStart,
+        With(
+            {
+                // Find the next variable in the same section
+                nextVarInSection: First(
+                    Sort(
+                        Filter(
+                            colVariableStartsNumbered,
+                            SectionIndex = varStart.SectionIndex,
+                            LineNumber > varStart.LineNumber
+                        ),
+                        LineNumber,
+                        Ascending
+                    )
+                ),
+                varEndLineNumber: If(
+                    !IsBlank(nextVarInSection.VariableName),
+                    nextVarInSection.StartLineNumber - 1,
+                    // End at the end of the section
+                    Max(
+                        Filter(
+                            colLines,
+                            SectionIndex = varStart.SectionIndex
+                        ),
+                        LineNumber
+                    )
+                )
+            },
+            {
+                VariableName: varStart.VariableName,
+                StartLineNumber: varStart.StartLineNumber,
+                EndLineNumber: varEndLineNumber,
+                SectionIndex: varStart.SectionIndex
+            }
+        )
+    )
+);
+
+// Step 6: Extract variable details
+ClearCollect(
+    colVariables,
+    ForAll(
+        colVariableDefinitions As varDef,
+        With(
+            {
+                varLines: Filter(
+                    colLines,
+                    LineNumber >= varDef.StartLineNumber && LineNumber <= varDef.EndLineNumber
+                ),
+                typeLines: Filter(
+                    varLines,
+                    StartsWith(Value, "type") || // Start of type definition
+                    (LastN(Split(Value, ""), 1).Result <> "{" && LastN(Split(Value, ""), 1).Result <> "}") // Continuation lines
+                ),
+                defaultLines: Filter(
+                    varLines,
+                    StartsWith(Value, "default") || // Start of default definition
+                    (LastN(Split(Value, ""), 1).Result <> "{" && LastN(Split(Value, ""), 1).Result <> "}") // Continuation lines
+                ),
+                descriptionLine: First(
+                    Filter(
+                        varLines,
+                        StartsWith(Value, "description")
+                    )
+                ),
+                // Concatenate the type lines
+                typeValue: Concat(
+                    typeLines,
+                    Value & Char(10)
+                ),
+                // Concatenate the default lines
+                defaultValue: Concat(
+                    defaultLines,
+                    Value & Char(10)
+                )
+            },
+            {
+                VariableName: varDef.VariableName,
+                Type: If(
+                    !IsBlank(typeValue),
+                    // Extract the type value after '='
+                    Trim(
+                        Mid(
+                            typeValue,
+                            Find("=", typeValue) + 1,
+                            Len(typeValue)
+                        )
+                    ),
+                    ""
+                ),
+                Default: If(
+                    !IsBlank(defaultValue),
+                    // Extract the default value after '='
+                    Trim(
+                        Mid(
+                            defaultValue,
+                            Find("=", defaultValue) + 1,
+                            Len(defaultValue)
+                        )
+                    ),
+                    ""
+                ),
+                Description: If(
+                    !IsBlank(descriptionLine.Value),
+                    Trim(
+                        Mid(
+                            descriptionLine.Value,
+                            Find("=", descriptionLine.Value) + 1,
+                            Len(descriptionLine.Value)
+                        )
+                    ),
+                    ""
+                ),
+                SectionIndex: varDef.SectionIndex
+            }
+        )
+    )
+);
