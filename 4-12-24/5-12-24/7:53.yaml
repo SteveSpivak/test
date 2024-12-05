@@ -1,0 +1,126 @@
+// Clear any existing rows
+Clear(colFlatRows);
+
+// Populate the flat collection with parsed lines from the Terraform file
+ForAll(
+    Filter(
+        Split(terraformFile, "# --------------------------------------------------------- #"),
+        Len(Trim(ThisRecord.Value)) > 0 // Exclude empty sections
+    ) As sections,
+    Collect(
+        colFlatRows,
+        ForAll(
+            Filter(
+                Split(sections.Value, Char(10)),
+                Len(Trim(Value)) > 0 // Exclude empty lines
+            ) As Line,
+            With(
+                {
+                    // Calculate the indentation level
+                    indentLevel: Len(Line.Value) - Len(Trim(Line.Value)),
+
+                    // Extract key and value
+                    key: If(
+                        " = " in Line.Value,
+                        Trim(First(Split(Line.Value, " = ")).Value),
+                        Blank()
+                    ),
+                    value: If(
+                        " = " in Line.Value,
+                        Trim(Last(Split(Line.Value, " = ")).Value),
+                        Blank()
+                    ),
+
+                    // Detect wrapper type and start or end
+                    isStartWrapper: "object(" in Line.Value || "map(" in Line.Value || "optional(" in Line.Value,
+                    isEndWrapper: Find("})", Line.Value) > 0 || Find("}", Line.Value) > 0,
+                    detectedWrapper: If(
+                        "object(" in Line.Value,
+                        "object",
+                        If(
+                            "map(" in Line.Value,
+                            "map",
+                            If("optional(" in Line.Value, "optional", Blank())
+                        )
+                    )
+                },
+                {
+                    sectionName: Text(
+                        Mid(
+                            sections.Value,
+                            Find("""", sections.Value) + 1,
+                            Find("""", Mid(sections.Value, Find("""", sections.Value) + 1)) - 1
+                        )
+                    ),
+                    indentLevel: indentLevel,
+                    key: key,
+                    value: value,
+                    detectedWrapper: detectedWrapper,
+                    isStartWrapper: isStartWrapper,
+                    isEndWrapper: isEndWrapper
+                }
+            )
+        )
+    )
+);
+
+// Step 2: Assign Parent Wrappers and Wrapper Relationships
+Clear(colParsedRows);
+
+ForAll(
+    colFlatRows As topRow,
+    Collect(
+        colParsedRows,
+        ForAll(
+            Filter(
+                colFlatRows,
+                indentLevel > topRow.indentLevel && sectionName = topRow.sectionName
+            ) As innerRow,
+            With(
+                {
+                    parentWrapper: LookUp(
+                        colFlatRows,
+                        indentLevel < innerRow.indentLevel &&
+                        indentLevel = First(
+                            Sort(
+                                Filter(
+                                    colFlatRows,
+                                    indentLevel < innerRow.indentLevel && sectionName = innerRow.sectionName
+                                ),
+                                indentLevel,
+                                SortOrder.Descending
+                            )
+                        ).indentLevel,
+                        key
+                    ),
+                    startWrapper: LookUp(
+                        colFlatRows,
+                        indentLevel < innerRow.indentLevel &&
+                        indentLevel = First(
+                            Sort(
+                                Filter(
+                                    colFlatRows,
+                                    indentLevel < innerRow.indentLevel && sectionName = innerRow.sectionName
+                                ),
+                                indentLevel,
+                                SortOrder.Descending
+                            )
+                        ).indentLevel,
+                        detectedWrapper
+                    )
+                },
+                {
+                    sectionName: innerRow.sectionName,
+                    indentLevel: innerRow.indentLevel,
+                    key: innerRow.key,
+                    value: innerRow.value,
+                    detectedWrapper: innerRow.detectedWrapper,
+                    isStartWrapper: innerRow.isStartWrapper,
+                    isEndWrapper: innerRow.isEndWrapper,
+                    parentWrapper: parentWrapper,
+                    startWrapper: startWrapper
+                }
+            )
+        )
+    )
+);
